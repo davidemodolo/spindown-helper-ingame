@@ -12,7 +12,7 @@ It's important to run the game with the flag `--luadebug` since it's required to
 
 In the first TextBox, write the name of an item until it appears in the list under the `Clear` button, then click it (the click is necessary for it to be updated in the game). Some items have a dedicated button since they are the most searched.
 
-![A](D:\SteamLibrary\steamapps\common\The Binding of Isaac Rebirth\mods\spindown-helper\resources\.github_imgs\A.png)
+![A](resources/github_imgs/A.png)
 
 
 
