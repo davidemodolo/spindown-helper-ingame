@@ -29,8 +29,8 @@ Values that can be seen on an item:
 
 Some examples:
 
-![3](resources\.github_imgs\3.png)
+![3](resources\github_imgs\3.png)
 
-![2](resources\.github_imgs\2.png)
+![2](resources\github_imgs\2.png)
 
-![1](resources\.github_imgs\1.png)
+![1](resources\github_imgs\1.png)
