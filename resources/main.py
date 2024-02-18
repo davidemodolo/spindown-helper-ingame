@@ -16,7 +16,8 @@ def save(suggestion):
         string = str(dictionary[suggestion][1]) if suggestion in dictionary else "999"
         f.write(string)
     with open(selected_file, "w") as f:
-        f.write(suggestion)
+        string = suggestion if suggestion in dictionary else "NOT FOUND"
+        f.write(string)
 
 def on_suggestion_click(event):
     selection = suggestion_listbox.curselection()
@@ -41,8 +42,10 @@ def clear():
 predefined_buttons = [
     "Sharp Plug",
     "Diplopia",
-    "IV Bag",
-    "The Sad Onion",
+    "Schoolbag",
+    "Death Certificate",
+    "Old Bandage",
+    "D Infinity",
 ]
 
 def set_item(suggestion):
@@ -75,8 +78,10 @@ suggestion_listbox.grid(row=2, column=0, columnspan=3, pady=(0, 10))
 
 # crate a grid of predefined buttons
 rows = int(len(predefined_buttons) / 3)
+icons = []
 for i, suggestion in enumerate(predefined_buttons):
-    button = ttk.Button(main_frame, text=suggestion, command=lambda s=suggestion: set_item(s))
+    icons.append(tk.PhotoImage(file = "resources/icons/" + dictionary[suggestion][1][1:] + ".png"))
+    button = ttk.Button(main_frame, text=suggestion, command=lambda s=suggestion: set_item(s), image=icons[i], compound="left")
     button.grid(row=3 + int(i / 3), column=i % 3)
 
 textbox.bind("<KeyRelease>", update_suggestions)
