@@ -110,10 +110,12 @@ local function printText()
         itemSprite.Color = Color(1,1,1,1)
         itemSprite:SetFrame("Idle", 8)
         itemSprite.Scale = Vector(0.5, 0.5)
-        itemSprite:Render(Vector(8, 218))
+        local OFFSET = 17
+        local Y = 201
+        itemSprite:Render(Vector(8, Y + OFFSET))
 
         -- GESTIONE TESTO
-        font:DrawStringScaled(text, 15, 201, 0.5, 0.5, KColor(255/255, 255/255, 255/255,0.5), 0, true)
+        font:DrawStringScaled(text, 15, Y, 0.5, 0.5, KColor(255/255, 255/255, 255/255,0.5), 0, true)
     end
 
 
