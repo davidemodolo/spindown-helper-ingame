@@ -132,45 +132,38 @@ local function printText()
             local screenPosition = Isaac.WorldToScreen(entity.Position)
             local txt, color = getSpins(entity.SubType, looking_for_id, cb)
             font:DrawString(txt, screenPosition.X - 7, screenPosition.Y - 15, color, 0, false)
-            -- Isaac.RenderText(txt, screenPosition.X-7, screenPosition.Y-15,1, 1, 1, 150)
         end
     end
 
 end
-local currentTime = os.date("%H:%M:%S")
+local currentTime = os.date("*t")
+
 local function onInput(entity, hook, button)
     if Input.IsButtonPressed(Keyboard.KEY_F1, 0) then
         showText = true
     else
         showText = false
     end
-    -- if Input.IsButtonPressed(Keyboard.KEY_F3, 0) then
-    --     local now = os.date("*t") -- Convert the current time to a table
-    --     local diff = os.difftime(os.time(now), os.time(currentTime))
-    --     if diff > 0.01 then
-    --         DC = not DC
-    --         currentTime = now
-    --     end
-    -- end
+    if Input.IsButtonPressed(Keyboard.KEY_F3, 0) then
+        local now = os.date("*t") -- Convert the current time to a table
+        local diff = os.difftime(os.time(now), os.time(currentTime))
+        if diff > 0.1 then
+            DC = not DC
+            currentTime = now
+        end
+    end
 end
-
 
 local function DeathCertificateFinder()
     if not DC then
         return
     end
-    -- local curses = Game():GetLevel():GetCurses()
-    -- if not (curses & LevelCurse.CURSE_OF_BLIND ~= LevelCurse.CURSE_OF_BLIND) then
-    --     return
-    -- end
     local file = io.open("mods\\spindown-helper\\resources\\selected.txt", "r")
     local item_text = ""
     if file then
         item_text = file:read("*a")
         file:close()
     end
-
-    -- if we are in the Death Certificate room, we don't want to show the text
     local file_id = io.open("mods\\spindown-helper\\resources\\selected_id.txt", "r")
     local looking_for_id = 0
     if file_id then
@@ -178,10 +171,22 @@ local function DeathCertificateFinder()
         file_id:close()
     end
     local show_id = dict_reverse[looking_for_id]
+
+    local itemSprite = Sprite();
+    local itemConfig = Isaac.GetItemConfig():GetCollectible(show_id)
+    local descriptor = itemConfig.GfxFileName
+    itemSprite:Load("gfx/005.100_Collectible.anm2", true)
+    itemSprite:ReplaceSpritesheet(1, descriptor)
+    itemSprite:LoadGraphics()
+    itemSprite.Color = Color(1, 1, 1, 1)
+    itemSprite:SetFrame("Idle", 8)
+    itemSprite.Scale = Vector(0.7, 0.7)
+    itemSprite:Render(Vector(210, 295))
     
+    local color_text = KColor(255 / 255, 255 / 255, 255 / 255, 1)
     local player = Isaac.GetPlayer(0)
     local playerPos = Isaac.WorldToScreen(player.Position)
-    local centerPlayer = Vector( playerPos.X-3, playerPos.Y -20)
+    local centerPlayer = Vector(playerPos.X - 3, playerPos.Y - 20)
     local radius = 25
     local entities = Isaac.GetRoomEntities()
     local wiggleSpeed = 0.25
@@ -189,26 +194,31 @@ local function DeathCertificateFinder()
     local time = Game():GetFrameCount() * wiggleSpeed
     local wiggleOffsetX = math.abs((math.sin(time) * wiggleAmplitude)) + 1
     local wiggleOffsetY = math.abs((math.cos(time) * wiggleAmplitude)) + 1
+    local found = false
     for i = 1, #entities do
         local entity = entities[i]
         if entity.Type == EntityType.ENTITY_PICKUP and entity.Variant == 100 and entity.SubType == show_id then
             local stringa = "In this room: " .. item_text
-            font:DrawStringScaled(stringa, 220, 250, 1, 1,
-                KColor(235 / 255, 214 / 255, 213 / 255, 1), 0, true)
-
             local screenPosition = Isaac.WorldToScreen(entity.Position)
             font:DrawStringScaled("!!!", screenPosition.X - 5, screenPosition.Y - 15, wiggleOffsetX, wiggleOffsetY,
                 colors["5"], 0, false)
-            local vector = Vector(screenPosition.X-3 - centerPlayer.X, screenPosition.Y-20 - centerPlayer.Y)
+            local vector = Vector(screenPosition.X - 3 - centerPlayer.X, screenPosition.Y - 20 - centerPlayer.Y)
             vector = vector:Normalized()
             local angle = math.atan(vector.Y, vector.X)
             local x = centerPlayer.X + radius * math.cos(angle)
             local y = centerPlayer.Y + radius * math.sin(angle)
-            font:DrawStringScaled('\007', x, y, wiggleOffsetX, wiggleOffsetY, colors["5"], 0, false)
             Isaac.RenderText("\007", x, y, 1, 1, 1, 255)
-
+            found = true
+            break
         end
     end
+    if found then
+        font:DrawStringScaled(item_text .. " here!", 220, 270, 1,1, colors["25"], 0, true)
+    else
+        font:DrawStringScaled("Looking for " .. item_text, 220, 270, 1, 1, color_text, 0, true)
+    end
+    
+
 end
 
 mod:AddCallback(ModCallbacks.MC_POST_RENDER, printText)
