@@ -46,6 +46,9 @@ predefined_buttons = [
     "Death Certificate",
     "Old Bandage",
     "D Infinity",
+    "Eden's Blessing",
+    "Pyromaniac",
+    "The D6"
 ]
 
 def set_item(suggestion):
@@ -58,7 +61,7 @@ root = tk.Tk()
 root.title("Spindown Dice - Mod Helper")
 root.iconbitmap("resources/icons/icon.ico")
 
-photo = tk.PhotoImage(file = "resources/icons/clear.png") #16x16
+photo = tk.PhotoImage(file="resources/icons/clear.png")  # 16x16
 
 # Create a frame for better organization
 main_frame = ttk.Frame(root)
@@ -80,9 +83,11 @@ suggestion_listbox.grid(row=2, column=0, columnspan=3, pady=(0, 10))
 rows = int(len(predefined_buttons) / 3)
 icons = []
 for i, suggestion in enumerate(predefined_buttons):
-    icons.append(tk.PhotoImage(file = "resources/icons/" + dictionary[suggestion][1][1:] + ".png"))
-    button = ttk.Button(main_frame, text=suggestion, command=lambda s=suggestion: set_item(s), image=icons[i], compound="left")
-    button.grid(row=3 + int(i / 3), column=i % 3)
+    icons.append(tk.PhotoImage(file="resources/icons/" + dictionary[suggestion][1][1:] + ".png"))
+    button = ttk.Button(main_frame, text=suggestion, command=lambda s=suggestion: set_item(s), image=icons[i],
+                        compound="left")
+    button.grid(row=3 + int(i / 3), column=i % 3, sticky="nsew")
+    #button.grid(row=3 + int(i / 3), column=i % 3)
 
 textbox.bind("<KeyRelease>", update_suggestions)
 suggestion_listbox.bind("<<ListboxSelect>>", on_suggestion_click)

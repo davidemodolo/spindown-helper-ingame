@@ -1,10 +1,62 @@
 local mod = RegisterMod("SpindownHelper", 1)
 
 local showText = false
-local DC = true
+local DC = false
 
 local font = Font()
 font:Load("font/pftempestasevencondensed.fnt")
+
+colors_shades = {}
+
+local function HSLToRGB(h, s, l)
+    h = h / 360
+    local r, g, b
+
+    if s == 0 then
+        r, g, b = l, l, l -- achromatic
+    else
+        local function hueToRGB(p, q, t)
+            if t < 0 then
+                t = t + 1
+            end
+            if t > 1 then
+                t = t - 1
+            end
+            if t < 1 / 6 then
+                return p + (q - p) * 6 * t
+            end
+            if t < 1 / 2 then
+                return q
+            end
+            if t < 2 / 3 then
+                return p + (q - p) * (2 / 3 - t) * 6
+            end
+            return p
+        end
+
+        local q = l < 0.5 and l * (1 + s) or l + s - l * s
+        local p = 2 * l - q
+        r = hueToRGB(p, q, h + 1 / 3)
+        g = hueToRGB(p, q, h)
+        b = hueToRGB(p, q, h - 1 / 3)
+    end
+
+    return r, g, b
+end
+
+for i = 1, 100 do
+    local hue = i * (360 / 100)
+    local r, g, b = HSLToRGB(hue, 1, 0.5)
+    table.insert(colors_shades, KColor(r, g, b, 1))
+end
+
+local function getColor(extra)
+    extra = extra or 0
+    local frames = Game():GetFrameCount() + extra
+    local index = (frames % 100) + 1
+    return colors_shades[index]
+end
+
 local colors = {
     ["no"] = KColor(200 / 255, 0 / 255, 0 / 255, 1),
     ["5"] = KColor(0 / 255, 255 / 255, 0 / 255, 1),
@@ -153,6 +205,19 @@ local function onInput(entity, hook, button)
         end
     end
 end
+local f2 = Font() -- init font object
+f2:Load("font/upheaval.fnt")
+local function drawCircleAsDots(center, radius)
+    local center = Vector(center.X + 1, center.Y - 9)
+    local dots = 100
+    for i = 1, dots do
+        local angle = (i / dots) * 2 * math.pi
+        local x = center.X + radius * math.cos(angle)
+        local y = center.Y + radius * math.sin(angle)
+        -- Isaac.RenderText("\007", x, y, 0, 1, 1, 255)
+        f2:DrawStringScaled(".", x, y, 0.5, 1, getColor(i), 0, true)
+    end
+end
 
 local function DeathCertificateFinder()
     if not DC then
@@ -182,43 +247,45 @@ local function DeathCertificateFinder()
     itemSprite:SetFrame("Idle", 8)
     itemSprite.Scale = Vector(0.7, 0.7)
     itemSprite:Render(Vector(210, 295))
-    
-    local color_text = KColor(255 / 255, 255 / 255, 255 / 255, 1)
+
     local player = Isaac.GetPlayer(0)
     local playerPos = Isaac.WorldToScreen(player.Position)
     local centerPlayer = Vector(playerPos.X - 3, playerPos.Y - 20)
     local radius = 25
     local entities = Isaac.GetRoomEntities()
-    local wiggleSpeed = 0.25
+    local wiggleSpeed = 0.2
     local wiggleAmplitude = 0.25
     local time = Game():GetFrameCount() * wiggleSpeed
     local wiggleOffsetX = math.abs((math.sin(time) * wiggleAmplitude)) + 1
     local wiggleOffsetY = math.abs((math.cos(time) * wiggleAmplitude)) + 1
     local found = false
+    local entityX = 0
+    local entityY = 0
     for i = 1, #entities do
         local entity = entities[i]
         if entity.Type == EntityType.ENTITY_PICKUP and entity.Variant == 100 and entity.SubType == show_id then
-            local stringa = "In this room: " .. item_text
-            local screenPosition = Isaac.WorldToScreen(entity.Position)
-            font:DrawStringScaled("!!!", screenPosition.X - 5, screenPosition.Y - 15, wiggleOffsetX, wiggleOffsetY,
-                colors["5"], 0, false)
-            local vector = Vector(screenPosition.X - 3 - centerPlayer.X, screenPosition.Y - 20 - centerPlayer.Y)
-            vector = vector:Normalized()
-            local angle = math.atan(vector.Y, vector.X)
-            local x = centerPlayer.X + radius * math.cos(angle)
-            local y = centerPlayer.Y + radius * math.sin(angle)
-            Isaac.RenderText("\007", x, y, 1, 1, 1, 255)
             found = true
+            local screenPosition = Isaac.WorldToScreen(entity.Position)
+            entityX = screenPosition.X
+            entityY = screenPosition.Y
             break
+
         end
     end
     if found then
-        font:DrawStringScaled(item_text .. " here!", 220, 270, 1,1, colors["25"], 0, true)
-    else
-        font:DrawStringScaled("Looking for " .. item_text, 220, 270, 1, 1, color_text, 0, true)
-    end
-    
+        font:DrawStringScaled(item_text .. " is here!", 220, 270, 1, 1, getColor(), 0, true)
+        local stringa = "In this room: " .. item_text
+        local vector = Vector(entityX - 3 - centerPlayer.X, entityY - 20 - centerPlayer.Y)
+        vector = vector:Normalized()
+        local angle = math.atan(vector.Y, vector.X)
+        local x = centerPlayer.X + radius * math.cos(angle)
+        local y = centerPlayer.Y + radius * math.sin(angle)
 
+        Isaac.RenderText("\007", x, y, 1, 1, 1, 255)
+        drawCircleAsDots(Vector(entityX - 3, entityY - 29), 17)
+    else
+        font:DrawStringScaled("Looking for " .. item_text, 220, 270, 1, 1, KColor(255 / 255, 255 / 255, 255 / 255, 1), 0, true)
+    end
 end
 
 mod:AddCallback(ModCallbacks.MC_POST_RENDER, printText)
