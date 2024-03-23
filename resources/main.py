@@ -47,7 +47,7 @@ predefined_buttons = [
     "Old Bandage",
     "D Infinity",
     "Eden's Blessing",
-    "Pyromaniac",
+    "Glitched Crown",
     "The D6"
 ]
 
