@@ -18,11 +18,11 @@ const v = {
   run: {},
 };
 
-const WIN_W = 200;
+const WIN_W = 300;
 const WIN_H = 70;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
-const MAX_RESULTS = 3;
+const MAX_RESULTS = 2;
 
 const CH_W = 6;
 
@@ -485,26 +485,25 @@ export class VirtualKeyboardFeature extends ModFeature {
       const cellX = wx + margin + i * cellW;
       const sel = state.cursorInResults && i === state.selectedResultIndex;
 
-      // Item sprite (sprite first, screen-space coords)
+      // Item sprite (sprite first, screen-space coords) — match Y with text like pedestalOverlay
       const gfx = item.gfxFileName;
+      const nameY = y + 3;
       if (gfx.length > 0) {
         const sprite = getItemSprite(gfx);
         if (sprite !== undefined) {
           sprite.Color = sel ? Color(1, 1, 1, 1) : Color(0.5, 0.4, 0.3, 0.7);
           sprite.SetFrame("Idle", 8);
           sprite.Scale = Vector(SPRITE_SCALE, SPRITE_SCALE);
-          sprite.Render(Vector(cellX + SPRITE_PX / 2, y + SPRITE_PX / 2), Vector(0, 0), Vector(0, 0));
+          sprite.Render(Vector(cellX + SPRITE_PX / 2, nameY + SPRITE_PX), Vector(0, 0), Vector(0, 0));
         }
       }
 
       // Name
-      const maxNameChars = Math.floor((cellW - SPRITE_PX - 6) / CH_W);
-      const name = shortenName(item.name, Math.max(3, maxNameChars));
       const nameX = cellX + SPRITE_PX + 6;
       if (sel) {
-        rtext(name, nameX, y + 3, 0.92, 0.76, 0.55, 1);
+        rtext(item.name, nameX, nameY, 0.92, 0.76, 0.55, 1);
       } else {
-        rtext(name, nameX, y + 3, 0.60, 0.46, 0.33, 0.85);
+        rtext(item.name, nameX, nameY, 0.60, 0.46, 0.33, 0.85);
       }
 
       // Arrow above selected
