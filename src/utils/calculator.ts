@@ -1,4 +1,4 @@
-import type { CollectibleType } from "isaac-typescript-definitions";
+import { CollectibleType } from "isaac-typescript-definitions";
 import { HIDDEN_SPINDOWN_IDS } from "../constants";
 
 export interface SpinResult {
@@ -27,10 +27,12 @@ export function computeSpins(
     return { label: "NO", spins: -1, reachable: false };
   }
 
-  // Dad's Note is immune to all rerolls
-  if (fromType === (668 as CollectibleType)) {
+  // Dad's Note cannot be a source (immune to all rerolls)
+  if (fromType === CollectibleType.DADS_NOTE) {
     return { label: "NO", spins: -1, reachable: false };
   }
+
+  const dadsNoteID = CollectibleType.DADS_NOTE as number;
 
   let steps = fromID - toID;
 
@@ -38,6 +40,14 @@ export function computeSpins(
     const hiddenID = hiddenType as number;
     if (hiddenID < fromID && hiddenID > toID) {
       steps--;
+    }
+  }
+
+  // If path crosses Dad's Note, Spindown lands on it instead of the target
+  if (toID < dadsNoteID && fromID > dadsNoteID) {
+    const stepsToNote = fromID - dadsNoteID;
+    if (!carBattery || stepsToNote % 2 === 0) {
+      return { label: "DN", spins: -1, reachable: false };
     }
   }
 
