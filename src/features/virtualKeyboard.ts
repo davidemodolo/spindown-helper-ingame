@@ -18,11 +18,11 @@ const v = {
   run: {},
 };
 
-const WIN_W = 300;
+const WIN_W = 200;
 const WIN_H = 70;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
-const MAX_RESULTS = 2;
+const MAX_RESULTS = 3;
 
 const CH_W = 6;
 
@@ -475,19 +475,18 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
 
-    const margin = 4;
-    const availW = WIN_W - margin * 2;
-    const cellW = Math.floor(availW / n);
+    const cellW = 55;
+    const blockW = n * cellW;
+    const ox = Math.floor((WIN_W - blockW) / 2);
+    const nameY = y + 3;
+    const prefixW = SPRITE_PX;
 
     for (let i = 0; i < n; i++) {
-      const item = items[i];
-      if (item === undefined) { continue; }
-      const cellX = wx + margin + i * cellW;
+      const item = items[i]!;
+      const cellX = wx + ox + i * cellW;
       const sel = state.cursorInResults && i === state.selectedResultIndex;
 
-      // Item sprite (sprite first, screen-space coords) — match Y with text like pedestalOverlay
       const gfx = item.gfxFileName;
-      const nameY = y + 3;
       if (gfx.length > 0) {
         const sprite = getItemSprite(gfx);
         if (sprite !== undefined) {
@@ -498,15 +497,8 @@ export class VirtualKeyboardFeature extends ModFeature {
         }
       }
 
-      // Name
-      const nameX = cellX + SPRITE_PX + 6;
-      if (sel) {
-        rtext(item.name, nameX, nameY, 0.92, 0.76, 0.55, 1);
-      } else {
-        rtext(item.name, nameX, nameY, 0.60, 0.46, 0.33, 0.85);
-      }
+      rtext(item.name, cellX + prefixW, nameY, sel ? 0.92 : 0.60, sel ? 0.76 : 0.46, sel ? 0.55 : 0.33, sel ? 1 : 0.85);
 
-      // Arrow above selected
       if (sel) {
         rtext("v", cellX + Math.floor(cellW / 2) - 1, y - 1, 0.75, 0.18, 0.14, 1);
       }
@@ -524,11 +516,10 @@ export class VirtualKeyboardFeature extends ModFeature {
         const sel = !state.cursorInResults
           && state.keyboardCursorRow === row
           && state.keyboardCursorCol === col;
-        // selected: blood red; unselected: warm tan
         if (sel) {
           rtext(keys[col]!, x, ry, 0.80, 0.18, 0.14, 1);
         } else {
-          rtext(keys[col]!, x, ry, 0.63, 0.49, 0.36, 0.9);
+          rtext(keys[col]!, x, ry, 0, 0, 0, 0.9);
         }
       }
     }
@@ -545,7 +536,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       if (sel) {
         rtext(`[${KEYBOARD_SPECIALS[col]}]`, x, sy, 0.80, 0.18, 0.14, 1);
       } else {
-        rtext(`[${KEYBOARD_SPECIALS[col]}]`, x, sy, 0.55, 0.42, 0.30, 0.85);
+        rtext(`[${KEYBOARD_SPECIALS[col]}]`, x, sy, 0, 0, 0, 0.85);
       }
     }
   }
