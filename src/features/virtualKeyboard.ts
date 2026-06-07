@@ -1,7 +1,6 @@
 import {
   ButtonAction,
   InputHook,
-  Keyboard,
   ModCallback,
 } from "isaac-typescript-definitions";
 import { ModFeature, Callback } from "isaacscript-common";
@@ -96,7 +95,6 @@ export class VirtualKeyboardFeature extends ModFeature {
   private wasBackPressed = false;
   private selectCooldown = 0;
   private closeCooldown = 0;
-  private wasF2Down = false;
   private selectWasDown = false;
   private selectPressTimer = 0;
 
@@ -128,50 +126,8 @@ export class VirtualKeyboardFeature extends ModFeature {
     return undefined;
   }
 
-  private nr(b: boolean): string {
-    return b ? "1" : "0";
-  }
-
-  private handleDebugText(): void {
-    const player = Isaac.GetPlayer(0);
-    if (player === undefined) {
-      return;
-    }
-    const ci = player.ControllerIndex;
-    const p = Game().IsPaused();
-    const up = p
-      ? Input.IsActionPressed(ButtonAction.MENU_UP, ci)
-      : Input.IsActionPressed(ButtonAction.UP, ci);
-    const down = p
-      ? Input.IsActionPressed(ButtonAction.MENU_DOWN, ci)
-      : Input.IsActionPressed(ButtonAction.DOWN, ci);
-    const left = p
-      ? Input.IsActionPressed(ButtonAction.MENU_LEFT, ci)
-      : Input.IsActionPressed(ButtonAction.LEFT, ci);
-    const right = p
-      ? Input.IsActionPressed(ButtonAction.MENU_RIGHT, ci)
-      : Input.IsActionPressed(ButtonAction.RIGHT, ci);
-    const a =
-      Input.IsActionPressed(ButtonAction.MENU_CONFIRM, ci) ||
-      Input.IsActionPressed(ButtonAction.ITEM, ci);
-    const back =
-      Input.IsActionPressed(ButtonAction.MENU_BACK, ci) ||
-      Input.IsActionPressed(ButtonAction.BOMB, ci);
-    rtext(
-      `U${this.nr(up)} D${this.nr(down)} L${this.nr(left)} R${this.nr(right)} A${this.nr(a)} B${this.nr(back)} Open:${this.nr(state.isKeyboardOpen)} Res:${this.nr(state.cursorInResults)}`,
-      10,
-      100,
-      1,
-      1,
-      0,
-      1,
-    );
-  }
-
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
-    state.isOverlayActive = state.overlayPinned || Input.IsButtonPressed(Keyboard.F1, 0);
-    this.handleDebugText();
     this.handleToggleInput();
 
     if (!state.isKeyboardOpen) {
@@ -200,15 +156,6 @@ export class VirtualKeyboardFeature extends ModFeature {
   private handleToggleInput(): void {
     const player = Isaac.GetPlayer(0);
     const ci = player?.ControllerIndex ?? 0;
-
-    const f2 = Input.IsButtonPressed(Keyboard.F2, 0);
-    if (f2 && !this.wasF2Down) {
-      this.toggleKeyboard();
-      this.wasF2Down = true;
-      return;
-    }
-    this.wasF2Down = f2;
-
     const mapDown = Input.IsActionPressed(ButtonAction.MAP, ci);
     const justPressed = mapDown && !this.selectWasDown;
     this.selectWasDown = mapDown;
@@ -403,6 +350,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       } else if (s === "CLEAR") {
         state.selectedItemType = undefined;
         state.selectedItemName = "";
+        state.overlayPinned = false;
         this.closeKeyboard();
       } else if (s === "OVERLAY") {
         state.overlayPinned = !state.overlayPinned;
@@ -428,6 +376,7 @@ export class VirtualKeyboardFeature extends ModFeature {
     if (item !== undefined) {
       state.selectedItemType = item.type;
       state.selectedItemName = item.name;
+      state.overlayPinned = true;
     }
     this.closeKeyboard();
   }
@@ -540,7 +489,7 @@ export class VirtualKeyboardFeature extends ModFeature {
         if (sel) {
           rtext(keys[col]!, x, ry, 0.80, 0.18, 0.14, 1);
         } else {
-          rtext(keys[col]!, x, ry, 0, 0, 0, 0.9);
+          rtext(keys[col]!, x, ry, 0.22, 0.14, 0.07, 0.9);
         }
       }
     }
@@ -561,7 +510,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       } else if (overlayActive) {
         rtext(`[${label}]`, x, sy, 0.92, 0.76, 0.30, 1);
       } else {
-        rtext(`[${label}]`, x, sy, 0, 0, 0, 0.85);
+        rtext(`[${label}]`, x, sy, 0.22, 0.14, 0.07, 0.9);
       }
     }
   }
