@@ -99,7 +99,7 @@ export class VirtualKeyboardFeature extends ModFeature {
   private selectPressTimer = 0;
 
   constructor(mod: ModUpgraded) {
-    super(mod, false);
+    super(mod, true);
   }
 
   @Callback(ModCallback.INPUT_ACTION, InputHook.IS_ACTION_PRESSED)
@@ -202,11 +202,10 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
     const ci = player.ControllerIndex;
-    const p = Game().IsPaused();
-    const up = p ? Input.IsActionPressed(ButtonAction.MENU_UP, ci) : Input.IsActionPressed(ButtonAction.UP, ci);
-    const down = p ? Input.IsActionPressed(ButtonAction.MENU_DOWN, ci) : Input.IsActionPressed(ButtonAction.DOWN, ci);
-    const left = p ? Input.IsActionPressed(ButtonAction.MENU_LEFT, ci) : Input.IsActionPressed(ButtonAction.LEFT, ci);
-    const right = p ? Input.IsActionPressed(ButtonAction.MENU_RIGHT, ci) : Input.IsActionPressed(ButtonAction.RIGHT, ci);
+    const up = Input.IsActionPressed(ButtonAction.UP, ci) || Input.IsActionPressed(ButtonAction.MENU_UP, ci);
+    const down = Input.IsActionPressed(ButtonAction.DOWN, ci) || Input.IsActionPressed(ButtonAction.MENU_DOWN, ci);
+    const left = Input.IsActionPressed(ButtonAction.LEFT, ci) || Input.IsActionPressed(ButtonAction.MENU_LEFT, ci);
+    const right = Input.IsActionPressed(ButtonAction.RIGHT, ci) || Input.IsActionPressed(ButtonAction.MENU_RIGHT, ci);
     if (!up && !down && !left && !right) {
       return;
     }
@@ -308,7 +307,6 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
     const ci = player.ControllerIndex;
-    const p = Game().IsPaused();
     const confirm = Input.IsActionPressed(ButtonAction.MENU_CONFIRM, ci) || Input.IsActionPressed(ButtonAction.ITEM, ci);
     const back = Input.IsActionPressed(ButtonAction.MENU_BACK, ci) || Input.IsActionPressed(ButtonAction.BOMB, ci);
 
