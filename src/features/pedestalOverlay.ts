@@ -9,7 +9,6 @@ import type { ModUpgraded } from "isaacscript-common";
 import state from "../state";
 import { computeSpins } from "../utils/calculator";
 import { getSpinColor, getUnreachableColor } from "../utils/color";
-import { screenToRenderPos } from "../utils/render";
 
 const v = {
   run: {},
@@ -30,38 +29,17 @@ export class PedestalOverlayFeature extends ModFeature {
 
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
-    const hasTarget = state.selectedItemType !== undefined && state.selectedItemName.length > 0;
-
-    if (state.overlayPinned && !state.isKeyboardOpen && hasTarget) {
-      this.renderBottomHUD();
-    }
-
-    if (!state.isOverlayActive) {
+    if (!state.overlayPinned || state.isKeyboardOpen) {
       return;
     }
-
-    if (!hasTarget) {
-      this.renderNoTargetMessage();
+    if (state.selectedItemType === undefined || state.selectedItemName.length === 0) {
       return;
     }
-
+    this.renderBottomHUD();
     const player = Isaac.GetPlayer(0);
-    if (player === undefined) {
-      return;
+    if (player !== undefined) {
+      this.renderPedestalSpins(player);
     }
-
-    if (!state.overlayPinned) {
-      this.renderTargetInfo();
-    }
-    this.renderPedestalSpins(player);
-  }
-
-  private renderNoTargetMessage(): void {
-    Isaac.RenderText(
-      "No target item selected (press F2)",
-      10, 10,
-      1, 1, 1, 1,
-    );
   }
 
   private ensureItemSprite(): Sprite | undefined {
@@ -79,32 +57,21 @@ export class PedestalOverlayFeature extends ModFeature {
     return this.itemSprite;
   }
 
-  private renderTargetInfo(): void {
-    const sprite = this.ensureItemSprite();
-    if (sprite !== undefined) {
-      sprite.Color = Color(1, 1, 1, 1);
-      sprite.SetFrame("Idle", 8);
-      sprite.Scale = Vector(0.5, 0.5);
-      sprite.Render(screenToRenderPos(20, 28), Vector(0, 0), Vector(0, 0));
-    }
-    Isaac.RenderText(state.selectedItemName, 48, 28, 1, 1, 1, 0.8);
-  }
-
   private renderBottomHUD(): void {
     const sprite = this.ensureItemSprite();
     const sw = Isaac.GetScreenWidth();
     const sh = Isaac.GetScreenHeight();
-    const nameW = state.selectedItemName.length * 7;
-    const blockW = 16 + 4 + nameW;
+    const nameW = state.selectedItemName.length * 5;
+    const blockW = 20 + nameW;
     const startX = Math.floor((sw - blockW) / 2);
     const y = sh - 26;
     if (sprite !== undefined) {
       sprite.Color = Color(1, 1, 1, 1);
       sprite.SetFrame("Idle", 8);
       sprite.Scale = Vector(0.5, 0.5);
-      sprite.Render(screenToRenderPos(startX + 8, y), Vector(0, 0), Vector(0, 0));
+      sprite.Render(Vector(startX + 8, y + 15), Vector(0, 0), Vector(0, 0));
     }
-    Isaac.RenderText(state.selectedItemName, startX + 20, y - 3, 1, 1, 1, 0.9);
+    Isaac.RenderScaledText(state.selectedItemName, startX + 20, y, 0.75, 0.75, 1, 1, 1, 0.9);
   }
 
   private renderPedestalSpins(player: EntityPlayer): void {
