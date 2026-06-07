@@ -1,11 +1,12 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
-import { HIDDEN_SPINDOWN_IDS } from "../constants";
+import { HIDDEN_SPINDOWN_IDS, FAVORITE_ITEM_TYPES } from "../constants";
 
 export interface ItemEntry {
   name: string;
   type: CollectibleType;
   gfxFileName: string;
   searchKey: string;
+  wordKeys: readonly string[];
 }
 
 let cachedRegistry: ItemEntry[] | undefined;
@@ -37,7 +38,7 @@ function makeSearchKey(name: string): string {
   return result;
 }
 
-export function getItemRegistry(): readonly ItemEntry[] {
+function getItemRegistry(): readonly ItemEntry[] {
   if (cachedRegistry !== undefined) {
     return cachedRegistry;
   }
@@ -68,6 +69,7 @@ export function getItemRegistry(): readonly ItemEntry[] {
       type,
       gfxFileName: collectible.GfxFileName,
       searchKey: makeSearchKey(name),
+      wordKeys: name.split(" ").map(w => makeSearchKey(w)).filter(w => w.length > 0),
     });
   }
 
@@ -75,26 +77,47 @@ export function getItemRegistry(): readonly ItemEntry[] {
   return cachedRegistry;
 }
 
+function getFavoriteItems(): ItemEntry[] {
+  const registry = getItemRegistry();
+  const favorites: ItemEntry[] = [];
+  for (const type of FAVORITE_ITEM_TYPES) {
+    const entry = registry.find(e => e.type === type);
+    if (entry !== undefined) {
+      favorites.push(entry);
+    }
+  }
+  return favorites;
+}
+
 export function searchItems(
   query: string,
   maxResults = 20,
 ): ItemEntry[] {
-  const registry = getItemRegistry();
   if (query.length === 0) {
-    return registry.slice(0, maxResults);
+    return getFavoriteItems();
   }
 
   const cleanedQuery = makeSearchKey(query);
-  const results: ItemEntry[] = [];
+  const registry = getItemRegistry();
 
+  const buckets: [ItemEntry[], ItemEntry[], ItemEntry[]] = [[], [], []];
   for (const entry of registry) {
-    if (entry.searchKey.includes(cleanedQuery)) {
-      results.push(entry);
-      if (results.length >= maxResults) {
-        break;
-      }
+    if (!entry.searchKey.includes(cleanedQuery)) continue;
+    if (entry.searchKey.startsWith(cleanedQuery)) {
+      buckets[0].push(entry);
+    } else if (entry.wordKeys.some(w => w.startsWith(cleanedQuery))) {
+      buckets[1].push(entry);
+    } else {
+      buckets[2].push(entry);
     }
   }
 
+  const results: ItemEntry[] = [];
+  for (const bucket of buckets) {
+    for (const entry of bucket) {
+      results.push(entry);
+      if (results.length >= maxResults) return results;
+    }
+  }
   return results;
 }

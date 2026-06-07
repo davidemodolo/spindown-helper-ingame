@@ -2,6 +2,12 @@ import type { CollectibleType } from "isaac-typescript-definitions";
 
 export const MOD_NAME = "spindown-helper-ingame";
 
+export const FAVORITE_ITEM_TYPES: readonly CollectibleType[] = [
+  628 as CollectibleType, // Death Certificate
+  347 as CollectibleType, // Diplopia
+  689 as CollectibleType, // Glitched Crown
+];
+
 export const HIDDEN_SPINDOWN_IDS: ReadonlySet<CollectibleType> = new Set([
   59 as CollectibleType, // Passive Book of Belial (Birthright Judas)
   656 as CollectibleType, // Passive Damocles
@@ -15,6 +21,6 @@ export const KEYBOARD_ROWS: readonly (readonly string[])[] = [
   ["Z", "X", "C", "V", "B", "N", "M"],
 ] as const;
 
-export const KEYBOARD_SPECIALS = ["SPACE"] as const;
+export const KEYBOARD_SPECIALS = ["SPACE", "CLEAR", "OVERLAY"] as const;
 
 export const KEYBOARD_COOLDOWN_FRAMES = 6;

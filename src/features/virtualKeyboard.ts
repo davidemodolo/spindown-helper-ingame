@@ -19,29 +19,28 @@ const v = {
 };
 
 const WIN_W = 180;
-const WIN_H = 82;
+const WIN_H = 92;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 3;
-
-const CH_W = 6;
 
 // Layout Y-offsets (screen coords relative to wy)
 const INPUT_Y = 6;
 const RESULTS_Y = 18;
 const KEYBOARD_Y = 32;
-const KEY_ROW_H = 5;
-const KEY_W = 9;
+const KEY_ROW_H = 9;
+const KEY_W = 11;
 const SPECIAL_W = 50;
-const HELP_Y = 64;
+const HELP_Y = 76;
 
 const SPRITE_SCALE = 0.4;
 const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
 
-const TEXT_SCALE = 0.5;
+const CH_W = 3;
 
 const spriteCache = new Map<string, Sprite>();
 let windowBg: Sprite | undefined;
+let kbFont: Font | undefined;
 
 function getItemSprite(gfxFileName: string): Sprite | undefined {
   if (gfxFileName.length === 0) {
@@ -71,8 +70,16 @@ function getWindowBg(): Sprite | undefined {
 }
 
 
+function getKbFont(): Font {
+  if (kbFont === undefined) {
+    kbFont = Font();
+    kbFont.Load("font/pftempestasevencondensed.fnt");
+  }
+  return kbFont;
+}
+
 function rtext(s: string, x: number, y: number, r: number, g: number, b: number, a: number): void {
-  Isaac.RenderScaledText(s, x, y, TEXT_SCALE, TEXT_SCALE, r, g, b, a);
+  getKbFont().DrawStringScaled(s, x, y, 0.55, 0.55, KColor(r, g, b, a), 0, false);
 }
 
 function shortenName(name: string, maxChars: number): string {
@@ -163,7 +170,7 @@ export class VirtualKeyboardFeature extends ModFeature {
 
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
-    state.isOverlayActive = Input.IsButtonPressed(Keyboard.F1, 0);
+    state.isOverlayActive = state.overlayPinned || Input.IsButtonPressed(Keyboard.F1, 0);
     this.handleDebugText();
     this.handleToggleInput();
 
@@ -393,6 +400,13 @@ export class VirtualKeyboardFeature extends ModFeature {
       if (s === "SPACE") {
         state.searchText += " ";
         this.onSearchChanged();
+      } else if (s === "CLEAR") {
+        state.selectedItemType = undefined;
+        state.selectedItemName = "";
+        this.closeKeyboard();
+      } else if (s === "OVERLAY") {
+        state.overlayPinned = !state.overlayPinned;
+        this.closeKeyboard();
       }
     }
   }
@@ -407,14 +421,6 @@ export class VirtualKeyboardFeature extends ModFeature {
   private onSearchChanged(): void {
     state.matchedItems = searchItems(state.searchText);
     state.selectedResultIndex = 0;
-  }
-
-  private selectFirstResult(): void {
-    if (state.matchedItems.length > 0 && state.matchedItems[0] !== undefined) {
-      state.selectedItemType = state.matchedItems[0].type;
-      state.selectedItemName = state.matchedItems[0].name;
-    }
-    this.closeKeyboard();
   }
 
   private selectHighlightedResult(): void {
@@ -488,9 +494,10 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
 
-    const cellW = 60;
+    const SIDE_PAD = 8;
+    const cellW = Math.floor((WIN_W - 2 * SIDE_PAD) / MAX_RESULTS); // 54px, gives 8px breathing room each side
     const blockW = n * cellW;
-    const ox = Math.floor((WIN_W - blockW) / 2);
+    const ox = SIDE_PAD + Math.floor((WIN_W - 2 * SIDE_PAD - blockW) / 2);
     const nameY = y + 3;
     const prefixW = SPRITE_PX;
 
@@ -547,10 +554,14 @@ export class VirtualKeyboardFeature extends ModFeature {
       const sel = !state.cursorInResults
         && state.keyboardCursorRow === sr
         && state.keyboardCursorCol === col;
+      const label = KEYBOARD_SPECIALS[col];
+      const overlayActive = label === "OVERLAY" && state.overlayPinned;
       if (sel) {
-        rtext(`[${KEYBOARD_SPECIALS[col]}]`, x, sy, 0.80, 0.18, 0.14, 1);
+        rtext(`[${label}]`, x, sy, 0.80, 0.18, 0.14, 1);
+      } else if (overlayActive) {
+        rtext(`[${label}]`, x, sy, 0.92, 0.76, 0.30, 1);
       } else {
-        rtext(`[${KEYBOARD_SPECIALS[col]}]`, x, sy, 0, 0, 0, 0.85);
+        rtext(`[${label}]`, x, sy, 0, 0, 0, 0.85);
       }
     }
   }

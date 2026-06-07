@@ -8,6 +8,7 @@ const state = {
   searchText: "" as string,
   isKeyboardOpen: false as boolean,
   isOverlayActive: false as boolean,
+  overlayPinned: false as boolean,
 
   keyboardCursorRow: 0 as number,
   keyboardCursorCol: 0 as number,

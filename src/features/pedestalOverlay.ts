@@ -30,14 +30,17 @@ export class PedestalOverlayFeature extends ModFeature {
 
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
+    const hasTarget = state.selectedItemType !== undefined && state.selectedItemName.length > 0;
+
+    if (state.overlayPinned && !state.isKeyboardOpen && hasTarget) {
+      this.renderBottomHUD();
+    }
+
     if (!state.isOverlayActive) {
       return;
     }
 
-    if (
-      state.selectedItemType === undefined ||
-      state.selectedItemName.length === 0
-    ) {
+    if (!hasTarget) {
       this.renderNoTargetMessage();
       return;
     }
@@ -47,7 +50,9 @@ export class PedestalOverlayFeature extends ModFeature {
       return;
     }
 
-    this.renderTargetInfo();
+    if (!state.overlayPinned) {
+      this.renderTargetInfo();
+    }
     this.renderPedestalSpins(player);
   }
 
@@ -59,42 +64,47 @@ export class PedestalOverlayFeature extends ModFeature {
     );
   }
 
+  private ensureItemSprite(): Sprite | undefined {
+    if (state.selectedItemType === undefined) return undefined;
+    const collectible = Isaac.GetItemConfig().GetCollectible(state.selectedItemType);
+    if (collectible === undefined) return undefined;
+    const gfxFileName = collectible.GfxFileName;
+    if (this.itemSprite === undefined || this.lastGfxFileName !== gfxFileName) {
+      this.itemSprite = Sprite();
+      this.itemSprite.Load("gfx/005.100_collectible.anm2", true);
+      this.itemSprite.ReplaceSpritesheet(1, gfxFileName);
+      this.itemSprite.LoadGraphics();
+      this.lastGfxFileName = gfxFileName;
+    }
+    return this.itemSprite;
+  }
+
   private renderTargetInfo(): void {
-    if (state.selectedItemType === undefined) {
-      return;
+    const sprite = this.ensureItemSprite();
+    if (sprite !== undefined) {
+      sprite.Color = Color(1, 1, 1, 1);
+      sprite.SetFrame("Idle", 8);
+      sprite.Scale = Vector(0.5, 0.5);
+      sprite.Render(screenToRenderPos(20, 28), Vector(0, 0), Vector(0, 0));
     }
+    Isaac.RenderText(state.selectedItemName, 48, 28, 1, 1, 1, 0.8);
+  }
 
-    const itemConfig = Isaac.GetItemConfig();
-    const collectible = itemConfig.GetCollectible(state.selectedItemType);
-    if (collectible !== undefined) {
-      const gfxFileName = collectible.GfxFileName;
-
-      if (
-        this.itemSprite === undefined ||
-        this.lastGfxFileName !== gfxFileName
-      ) {
-        this.itemSprite = Sprite();
-        this.itemSprite.Load("gfx/005.100_collectible.anm2", true);
-        this.itemSprite.ReplaceSpritesheet(1, gfxFileName);
-        this.itemSprite.LoadGraphics();
-        this.lastGfxFileName = gfxFileName;
-      }
-
-      this.itemSprite.Color = Color(1, 1, 1, 1);
-      this.itemSprite.SetFrame("Idle", 8);
-      this.itemSprite.Scale = Vector(0.5, 0.5);
-      this.itemSprite.Render(
-        screenToRenderPos(20, 28),
-        Vector(0, 0),
-        Vector(0, 0),
-      );
+  private renderBottomHUD(): void {
+    const sprite = this.ensureItemSprite();
+    const sw = Isaac.GetScreenWidth();
+    const sh = Isaac.GetScreenHeight();
+    const nameW = state.selectedItemName.length * 7;
+    const blockW = 16 + 4 + nameW;
+    const startX = Math.floor((sw - blockW) / 2);
+    const y = sh - 26;
+    if (sprite !== undefined) {
+      sprite.Color = Color(1, 1, 1, 1);
+      sprite.SetFrame("Idle", 8);
+      sprite.Scale = Vector(0.5, 0.5);
+      sprite.Render(screenToRenderPos(startX + 8, y), Vector(0, 0), Vector(0, 0));
     }
-
-    Isaac.RenderText(
-      state.selectedItemName,
-      48, 28,
-      1, 1, 1, 0.8,
-    );
+    Isaac.RenderText(state.selectedItemName, startX + 20, y - 3, 1, 1, 1, 0.9);
   }
 
   private renderPedestalSpins(player: EntityPlayer): void {
