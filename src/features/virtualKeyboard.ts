@@ -18,8 +18,8 @@ const v = {
   run: {},
 };
 
-const WIN_W = 200;
-const WIN_H = 70;
+const WIN_W = 180;
+const WIN_H = 82;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 3;
@@ -27,13 +27,13 @@ const MAX_RESULTS = 3;
 const CH_W = 6;
 
 // Layout Y-offsets (screen coords relative to wy)
-const INPUT_Y = 4;
-const RESULTS_Y = 10;
-const KEYBOARD_Y = 26;
+const INPUT_Y = 6;
+const RESULTS_Y = 18;
+const KEYBOARD_Y = 32;
 const KEY_ROW_H = 5;
 const KEY_W = 9;
 const SPECIAL_W = 50;
-const HELP_Y = 54;
+const HELP_Y = 64;
 
 const SPRITE_SCALE = 0.4;
 const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
@@ -99,7 +99,7 @@ export class VirtualKeyboardFeature extends ModFeature {
 
   @Callback(ModCallback.INPUT_ACTION, InputHook.IS_ACTION_PRESSED)
   onActionPressed(): boolean | undefined {
-    if (state.isKeyboardOpen) {
+    if (state.isKeyboardOpen || this.closeCooldown > 0) {
       return false;
     }
     return undefined;
@@ -107,8 +107,16 @@ export class VirtualKeyboardFeature extends ModFeature {
 
   @Callback(ModCallback.INPUT_ACTION, InputHook.IS_ACTION_TRIGGERED)
   onActionTriggered(): boolean | undefined {
-    if (state.isKeyboardOpen) {
+    if (state.isKeyboardOpen || this.closeCooldown > 0) {
       return false;
+    }
+    return undefined;
+  }
+
+  @Callback(ModCallback.INPUT_ACTION, InputHook.GET_ACTION_VALUE)
+  onGetActionValue(): number | undefined {
+    if (state.isKeyboardOpen || this.closeCooldown > 0) {
+      return 0;
     }
     return undefined;
   }
@@ -421,7 +429,11 @@ export class VirtualKeyboardFeature extends ModFeature {
   private closeKeyboard(): void {
     state.isKeyboardOpen = false;
     state.cursorInResults = false;
-    this.closeCooldown = 5;
+    this.closeCooldown = 8;
+    const player = Isaac.GetPlayer(0);
+    if (player !== undefined) {
+      player.ControlsEnabled = false;
+    }
   }
 
   // ==================================================================
@@ -445,7 +457,7 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private renderInput(wx: number, y: number): void {
-    const maxVisible = Math.floor((WIN_W - 30) / CH_W);
+    const maxVisible = Math.floor((WIN_W - 40) / CH_W);
     const t = state.searchText;
     const display = t.length === 0
       ? "_"
@@ -453,18 +465,14 @@ export class VirtualKeyboardFeature extends ModFeature {
         ? `${t.slice(-(maxVisible - 1))}_`
         : `${t}_`;
 
-    // blood-red ">" cursor
-    rtext(">", wx + 6, y, 0.75, 0.18, 0.14, 1);
-    // parchment text
-    rtext(display, wx + 6 + CH_W * 2, y, 0.88, 0.78, 0.63, 1);
+    const inputBlockW = (display.length + 2) * CH_W;
+    const inputX = wx + Math.floor((WIN_W - inputBlockW) / 2);
 
-    // dim count on right
-    const count = `${state.matchedItems.length}`;
-    rtext(count, wx + WIN_W - count.length * CH_W - 6, y, 0.42, 0.31, 0.22, 1);
+    rtext(">", inputX, y, 0.75, 0.18, 0.14, 1);
+    rtext(display, inputX + CH_W * 2, y, 0.88, 0.78, 0.63, 1);
 
-    // selected item name on right (if any)
     if (state.selectedItemName.length > 0 && state.searchText.length === 0) {
-      const label = shortenName(state.selectedItemName, 18);
+      const label = shortenName(state.selectedItemName, 15);
       rtext(label, wx + WIN_W - label.length * CH_W - 22, y, 0.78, 0.55, 0.30, 0.8);
     }
   }
@@ -480,7 +488,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
 
-    const cellW = 55;
+    const cellW = 60;
     const blockW = n * cellW;
     const ox = Math.floor((WIN_W - blockW) / 2);
     const nameY = y + 3;
@@ -502,7 +510,8 @@ export class VirtualKeyboardFeature extends ModFeature {
         }
       }
 
-      rtext(item.name, cellX + prefixW, nameY, sel ? 0.92 : 0.60, sel ? 0.76 : 0.46, sel ? 0.55 : 0.33, sel ? 1 : 0.85);
+      const name = shortenName(item.name, 15);
+      rtext(name, cellX + prefixW, nameY, sel ? 0.92 : 0.60, sel ? 0.76 : 0.46, sel ? 0.55 : 0.33, sel ? 1 : 0.85);
 
       if (sel) {
         rtext("v", cellX + Math.floor(cellW / 2) - 1, y - 1, 0.75, 0.18, 0.14, 1);
@@ -550,6 +559,8 @@ export class VirtualKeyboardFeature extends ModFeature {
     const msg = state.cursorInResults
       ? "< > nav  A:pick  B:close  v:keys"
       : "^:results  A:type  B:del";
-    rtext(msg, wx + 4, y, 0.40, 0.28, 0.20, 0.55);
+    const msgW = msg.length * CH_W;
+    const x = wx + Math.floor((WIN_W - msgW) / 2) + 12;
+    rtext(msg, x, y, 0.40, 0.28, 0.20, 0.55);
   }
 }
