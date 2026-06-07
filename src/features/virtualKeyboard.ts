@@ -24,16 +24,15 @@ const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 3;
 
-const CH_W = 3;
-const CH_H = 4;
+const CH_W = 6;
 
 // Layout Y-offsets (screen coords relative to wy)
 const INPUT_Y = 4;
 const RESULTS_Y = 10;
 const KEYBOARD_Y = 26;
 const KEY_ROW_H = 5;
-const KEY_W = 5;
-const SPECIAL_W = 22;
+const KEY_W = 9;
+const SPECIAL_W = 50;
 const HELP_Y = 54;
 
 const SPRITE_SCALE = 0.4;
@@ -429,9 +428,8 @@ export class VirtualKeyboardFeature extends ModFeature {
 
     const bg = getWindowBg();
     if (bg !== undefined) {
-      bg.Scale = Vector(WIN_W, WIN_H);
       bg.SetFrame("bg", 0);
-      bg.Render(Vector(wx + WIN_W / 2, wy + WIN_H / 2), Vector(0, 0), Vector(0, 0));
+      bg.Render(Vector(wx, wy), Vector(0, 0), Vector(0, 0));
     }
 
     this.renderInput(wx, wy + INPUT_Y);
