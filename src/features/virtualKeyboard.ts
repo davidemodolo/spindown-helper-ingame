@@ -88,6 +88,7 @@ export class VirtualKeyboardFeature extends ModFeature {
   private wasConfirmPressed = false;
   private wasBackPressed = false;
   private selectCooldown = 0;
+  private closeCooldown = 0;
   private wasF2Down = false;
   private selectWasDown = false;
   private selectPressTimer = 0;
@@ -159,6 +160,13 @@ export class VirtualKeyboardFeature extends ModFeature {
     this.handleToggleInput();
 
     if (!state.isKeyboardOpen) {
+      if (this.closeCooldown > 0) {
+        this.closeCooldown--;
+        const player = Isaac.GetPlayer(0);
+        if (player !== undefined) {
+          player.ControlsEnabled = this.closeCooldown > 0 ? false : true;
+        }
+      }
       return;
     }
 
@@ -413,10 +421,7 @@ export class VirtualKeyboardFeature extends ModFeature {
   private closeKeyboard(): void {
     state.isKeyboardOpen = false;
     state.cursorInResults = false;
-    const player = Isaac.GetPlayer(0);
-    if (player !== undefined) {
-      player.ControlsEnabled = true;
-    }
+    this.closeCooldown = 5;
   }
 
   // ==================================================================
