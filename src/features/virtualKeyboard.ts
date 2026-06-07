@@ -374,9 +374,10 @@ export class VirtualKeyboardFeature extends ModFeature {
       }
     } else {
       const s = KEYBOARD_SPECIALS[state.keyboardCursorCol];
-      if (s === "SPACE") { state.searchText += " "; this.onSearchChanged(); }
-      else if (s === "DEL") { this.backspace(); }
-      else if (s === "OK") { this.selectFirstResult(); }
+      if (s === "SPACE") {
+        state.searchText += " ";
+        this.onSearchChanged();
+      }
     }
   }
 
@@ -553,7 +554,7 @@ export class VirtualKeyboardFeature extends ModFeature {
   private renderHelpBar(wx: number, y: number): void {
     const msg = state.cursorInResults
       ? "< > nav  A:pick  B:close  v:keys"
-      : "^:results  A:type  B:del  OK:go";
+      : "^:results  A:type  B:del";
     rtext(msg, wx + 4, y, 0.40, 0.28, 0.20, 0.55);
   }
 }

@@ -15,6 +15,6 @@ export const KEYBOARD_ROWS: readonly (readonly string[])[] = [
   ["Z", "X", "C", "V", "B", "N", "M"],
 ] as const;
 
-export const KEYBOARD_SPECIALS = ["SPACE", "DEL", "OK"] as const;
+export const KEYBOARD_SPECIALS = ["SPACE"] as const;
 
 export const KEYBOARD_COOLDOWN_FRAMES = 6;
