@@ -1,36 +1,47 @@
-# The Binding of Isaac: Repentace - Spindown Dice in-game Mod
+# Spindown Helper In-Game
 
-**Idea**: in-game Spindown Dice visualizer:
-1. Inside the companion app (`resources/main.py` that has to be run from the home directory) choose an Item
-2. Inside the game press `F1` to see the number of spins needed to go down to the chosen item
+An in-game mod for [_The Binding of Isaac: Repentance_](https://store.steampowered.com/app/1426300/The_Binding_of_Isaac_Repentance/) that shows how many Spindown Dice spins are needed to reach a desired item — no external companion app required.
 
+Written in [TypeScript](https://www.typescriptlang.org/) using [IsaacScript](https://isaacscript.github.io/). This is a full rewrite of the [original Lua mod](old_version/).
 
+## How to Use
 
-It's important to run the game with the flag `--luadebug` since it's required to read the files that are used from the mod and the companion to communicate.
+### Select a target item
 
-## Companion app
+Press **F2** (or double-tap Select/Map on controller) to open the in-game virtual keyboard:
 
-In the first TextBox, write the name of an item until it appears in the list under the `Clear` button, then click it (the click is necessary for it to be updated in the game). Some items have a dedicated button since they are the most searched.
+- **Arrow keys / D-pad** — move the cursor across the letter grid
+- **Confirm / Item button** — type the highlighted letter
+- **Back / Bomb button** — delete the last character
+- **`[OK]`** — pick the first search result
 
-![A](resources/github_imgs/A.png)
+As you type, up to 3 matching items appear above the keyboard. Push **Up** to enter the results row, then **Left/Right** to navigate between matches. Press **Confirm** to select one.
 
+Press **F2** again (or double-tap Select) to close the keyboard.
 
+### View spin counts
 
-## In game visualizer
+Hold **F1** to overlay the number of spins needed on every collectible pedestal in the room. The label appears above each item:
 
-On the left part, the selected Item can be seen right under the stats. Remember that everything is shown while `F1` is pressed
+| Label | Meaning |
+|-------|---------|
+| `X` | Number of Spindown Dice spins to reach the target |
+| `NO` | Unreachable — target ID is equal or higher, or blocked by a hidden item |
+| `CB` | Skipped due to Car Battery (odd step count) |
 
-Values that can be seen on an item:
+Spin counts are color-coded by distance: green → yellow-green → yellow → orange → red-orange. Unreachable items are shown in dark red.
 
-- `X`, where `X` is the number of spins needed to go down to the chosen item
-- `NO`, when the selected item is not reachable with any number of spins (the id of the target is higher than the id of the in-game item)
-- `DN`, when *Dad's Note* is on the way, and it blocks the spinning
-- `CB`, when due to *Car Battery* the selected item is skipped
+If no target is selected, a hint is shown in the top-left corner.
 
-Some examples:
+## How to Compile
 
-![B](resources/github_imgs/B.png)
+- Install [Node.js](https://nodejs.org/en/download/)
+- Clone this repository
+- Run `npm ci` to install dependencies
+- Run `npm start` to launch the IsaacScript monitor (auto-recompiles on changes)
+- Copy or symlink the `mod/` folder into your Isaac mods directory
 
-![C](resources/github_imgs/C.png)
+## Related
 
-![D](resources/github_imgs/D.png)
+- [Steam Workshop](https://steamcommunity.com/app/250900/workshop/)
+- [Original Lua version](old_version/)
