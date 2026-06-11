@@ -13,26 +13,26 @@ import {
 import state from "../state";
 import { searchItems } from "../utils/items";
 
-const WIN_W = 190;
-const WIN_H = 97;
+const WIN_W = 224;
+const WIN_H = 112;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 5;
 
 // Layout Y-offsets (screen coords relative to wy)
-const INPUT_Y = 9;
-const RESULTS_TOP_Y = 21;
-const RESULTS_BOT_Y = 33;
+const INPUT_Y = 4;
+const RESULTS_TOP_Y = 16;
+const RESULTS_BOT_Y = 32;
 const KEYBOARD_Y = 48;
-const HELP_Y = 89;
-const KEY_ROW_H = 9;
-const KEY_W = 11;
-const SPECIAL_W = 50;
+const HELP_Y = 96;
+const KEY_ROW_H = 8;
+const KEY_W = 8;
+const SPECIAL_W = 48;
 
 const SPRITE_SCALE = 0.4;
 const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
 
-const CH_W = 3;
+const CH_W = 4;
 
 const spriteCache = new Map<string, Sprite>();
 let windowBg: Sprite | undefined;

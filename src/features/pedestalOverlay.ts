@@ -48,6 +48,11 @@ export class PedestalOverlayFeature extends ModFeature {
       return;
     }
 
+    if (state.isKeyboardOpen) {
+      this.renderBottomHUD(state.selectedItemName);
+      return;
+    }
+
     if (inDeathCertificateArea()) {
       this.renderDeathCertificate(player);
     } else {
