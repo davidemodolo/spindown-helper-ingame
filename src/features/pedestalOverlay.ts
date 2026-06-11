@@ -27,6 +27,9 @@ export class PedestalOverlayFeature extends ModFeature {
   private noSprite: Sprite | undefined;
   private noCBSprite: Sprite | undefined;
   private noDNSprite: Sprite | undefined;
+  private cachedDCRoom = -1;
+  private cachedDCItemType: CollectibleType | undefined;
+  private cachedDCEntity: EntityPickup | null | undefined;
 
   constructor(mod: ModUpgraded) {
     super(mod, false);
@@ -188,29 +191,39 @@ export class PedestalOverlayFeature extends ModFeature {
   }
 
   private renderDeathCertificate(player: EntityPlayer): void {
-    if (state.selectedItemType === undefined) {
+    const itemType = state.selectedItemType;
+    if (itemType === undefined) {
       return;
     }
 
-    const entities = Isaac.GetRoomEntities();
-    let foundEntity: EntityPickup | null = null;
+    const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
+    if (
+      roomIndex !== this.cachedDCRoom
+      || itemType !== this.cachedDCItemType
+    ) {
+      this.cachedDCRoom = roomIndex;
+      this.cachedDCItemType = itemType;
+      this.cachedDCEntity = null;
 
-    for (const entity of entities) {
-      if (
-        entity.Type !== EntityType.PICKUP
-        || entity.Variant !== PickupVariant.COLLECTIBLE
-      ) {
-        continue;
-      }
-      const pickup = entity.ToPickup();
-      if (pickup !== undefined && pickup.SubType === state.selectedItemType) {
-        foundEntity = pickup;
-        break;
+      const entities = Isaac.GetRoomEntities();
+      for (const entity of entities) {
+        if (
+          entity.Type !== EntityType.PICKUP
+          || entity.Variant !== PickupVariant.COLLECTIBLE
+        ) {
+          continue;
+        }
+        const pickup = entity.ToPickup();
+        if (pickup !== undefined && pickup.SubType === itemType) {
+          this.cachedDCEntity = pickup;
+          break;
+        }
       }
     }
 
+    const foundEntity = this.cachedDCEntity ?? null;
+
     if (foundEntity) {
-      const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
       if (roomIndex !== this.lastPlayedRoom) {
         sfxManager.Play(SoundEffect.HOLY_CARD, 1, 0, false, 1, 0);
         this.lastPlayedRoom = roomIndex;
