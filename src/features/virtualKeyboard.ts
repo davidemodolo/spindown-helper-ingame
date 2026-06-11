@@ -3,30 +3,31 @@ import {
   InputHook,
   ModCallback,
 } from "isaac-typescript-definitions";
-import { ModFeature, Callback, fonts } from "isaacscript-common";
 import type { ModUpgraded } from "isaacscript-common";
-import state from "../state";
+import { Callback, fonts, ModFeature } from "isaacscript-common";
 import {
   KEYBOARD_COOLDOWN_FRAMES,
   KEYBOARD_ROWS,
   KEYBOARD_SPECIALS,
 } from "../constants";
+import state from "../state";
 import { searchItems } from "../utils/items";
 
 const WIN_W = 190;
 const WIN_H = 97;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
-const MAX_RESULTS = 3;
+const MAX_RESULTS = 5;
 
 // Layout Y-offsets (screen coords relative to wy)
 const INPUT_Y = 6;
-const RESULTS_Y = 18;
-const KEYBOARD_Y = 32;
+const RESULTS_TOP_Y = 14;
+const RESULTS_BOT_Y = 22;
+const KEYBOARD_Y = 34;
 const KEY_ROW_H = 9;
 const KEY_W = 11;
 const SPECIAL_W = 50;
-const HELP_Y = 76;
+const HELP_Y = 78;
 
 const SPRITE_SCALE = 0.4;
 const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
@@ -35,7 +36,6 @@ const CH_W = 3;
 
 const spriteCache = new Map<string, Sprite>();
 let windowBg: Sprite | undefined;
-let kbFont: Font | undefined;
 
 function getItemSprite(gfxFileName: string): Sprite | undefined {
   if (gfxFileName.length === 0) {
@@ -64,17 +64,29 @@ function getWindowBg(): Sprite | undefined {
   return windowBg;
 }
 
-
 function getKbFont(): Font {
-  if (kbFont === undefined) {
-    kbFont = Font();
-    kbFont.Load("font/pftempestasevencondensed.fnt");
-  }
-  return kbFont;
+  return fonts.terminus;
 }
 
-function rtext(s: string, x: number, y: number, r: number, g: number, b: number, a: number): void {
-  getKbFont().DrawStringScaled(s, x, y, 0.55, 0.55, KColor(r, g, b, a), 0, false);
+function rtext(
+  s: string,
+  x: number,
+  y: number,
+  r: number,
+  g: number,
+  b: number,
+  a: number,
+): void {
+  getKbFont().DrawStringScaled(
+    s,
+    x,
+    y,
+    0.55,
+    0.55,
+    KColor(r, g, b, a),
+    0,
+    false,
+  );
 }
 
 function shortenName(name: string, maxChars: number): string {
@@ -196,10 +208,18 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
     const ci = player.ControllerIndex;
-    const up = Input.IsActionPressed(ButtonAction.UP, ci) || Input.IsActionPressed(ButtonAction.MENU_UP, ci);
-    const down = Input.IsActionPressed(ButtonAction.DOWN, ci) || Input.IsActionPressed(ButtonAction.MENU_DOWN, ci);
-    const left = Input.IsActionPressed(ButtonAction.LEFT, ci) || Input.IsActionPressed(ButtonAction.MENU_LEFT, ci);
-    const right = Input.IsActionPressed(ButtonAction.RIGHT, ci) || Input.IsActionPressed(ButtonAction.MENU_RIGHT, ci);
+    const up =
+      Input.IsActionPressed(ButtonAction.UP, ci)
+      || Input.IsActionPressed(ButtonAction.MENU_UP, ci);
+    const down =
+      Input.IsActionPressed(ButtonAction.DOWN, ci)
+      || Input.IsActionPressed(ButtonAction.MENU_DOWN, ci);
+    const left =
+      Input.IsActionPressed(ButtonAction.LEFT, ci)
+      || Input.IsActionPressed(ButtonAction.MENU_LEFT, ci);
+    const right =
+      Input.IsActionPressed(ButtonAction.RIGHT, ci)
+      || Input.IsActionPressed(ButtonAction.MENU_RIGHT, ci);
     if (!up && !down && !left && !right) {
       return;
     }
@@ -211,7 +231,10 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private handleKeyboardCursorMovement(
-    up: boolean, down: boolean, left: boolean, right: boolean,
+    up: boolean,
+    down: boolean,
+    left: boolean,
+    right: boolean,
   ): void {
     if (up) {
       state.keyboardCursorRow--;
@@ -241,12 +264,16 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private handleResultCursorMovement(
-    down: boolean, left: boolean, right: boolean,
+    down: boolean,
+    left: boolean,
+    right: boolean,
   ): void {
     if (down) {
       state.cursorInResults = false;
       state.keyboardCursorRow = 0;
-      state.keyboardCursorCol = Math.floor((KEYBOARD_ROWS[0]?.length ?? 10) / 2);
+      state.keyboardCursorCol = Math.floor(
+        (KEYBOARD_ROWS[0]?.length ?? 10) / 2,
+      );
     } else if (left) {
       state.selectedResultIndex--;
     } else if (right) {
@@ -301,8 +328,12 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
     const ci = player.ControllerIndex;
-    const confirm = Input.IsActionPressed(ButtonAction.MENU_CONFIRM, ci) || Input.IsActionPressed(ButtonAction.ITEM, ci);
-    const back = Input.IsActionPressed(ButtonAction.MENU_BACK, ci) || Input.IsActionPressed(ButtonAction.BOMB, ci);
+    const confirm =
+      Input.IsActionPressed(ButtonAction.MENU_CONFIRM, ci)
+      || Input.IsActionPressed(ButtonAction.ITEM, ci);
+    const back =
+      Input.IsActionPressed(ButtonAction.MENU_BACK, ci)
+      || Input.IsActionPressed(ButtonAction.BOMB, ci);
 
     if (state.cursorInResults) {
       if (confirm && !this.wasConfirmPressed) {
@@ -398,7 +429,8 @@ export class VirtualKeyboardFeature extends ModFeature {
     }
 
     this.renderInput(wx, wy + INPUT_Y);
-    this.renderResultsRow(wx, wy + RESULTS_Y);
+    this.renderResultsRow(wx, wy + RESULTS_BOT_Y, 0, 3);
+    this.renderResultsRow(wx, wy + RESULTS_TOP_Y, 3, 5);
     this.renderKeyboardGrid(wx, wy + KEYBOARD_Y);
     this.renderHelpBar(wx, wy + HELP_Y);
   }
@@ -406,64 +438,84 @@ export class VirtualKeyboardFeature extends ModFeature {
   private renderInput(wx: number, y: number): void {
     const maxVisible = Math.floor((WIN_W - 40) / CH_W);
     const t = state.searchText;
-    const display = t.length === 0
-      ? "_"
-      : t.length > maxVisible
-        ? `${t.slice(-(maxVisible - 1))}_`
-        : `${t}_`;
+    const display =
+      t.length === 0
+        ? "_"
+        : t.length > maxVisible
+          ? `${t.slice(-(maxVisible - 1))}_`
+          : `${t}_`;
 
     const inputBlockW = (display.length + 2) * CH_W;
     const inputX = wx + Math.floor((WIN_W - inputBlockW) / 2);
 
     rtext(">", inputX, y, 0.75, 0.18, 0.14, 1);
     rtext(display, inputX + CH_W * 2, y, 0.88, 0.78, 0.63, 1);
-
-    if (state.selectedItemName.length > 0 && state.searchText.length === 0) {
-      const label = shortenName(state.selectedItemName, 15);
-      rtext(label, wx + WIN_W - label.length * CH_W - 22, y, 0.78, 0.55, 0.30, 0.8);
-    }
   }
 
-  private renderResultsRow(wx: number, y: number): void {
+  private renderResultsRow(
+    wx: number,
+    y: number,
+    start: number,
+    end: number,
+  ): void {
     const items = state.matchedItems;
-    const n = Math.min(items.length, MAX_RESULTS);
-    if (n === 0) {
-      if (state.searchText.length > 0) {
+    const max = Math.min(items.length, end);
+    if (start >= max) {
+      if (start === 0 && state.searchText.length > 0) {
         const msg = "no match";
-        rtext(msg, wx + WIN_W / 2 - msg.length * (CH_W / 2), y + 3, 0.38, 0.26, 0.18, 0.7);
+        rtext(
+          msg,
+          wx + WIN_W / 2 - msg.length * (CH_W / 2),
+          y + 3,
+          0.38,
+          0.26,
+          0.18,
+          0.7,
+        );
       }
       return;
     }
 
+    const n = max - start;
     const SIDE_PAD = 8;
-    const cellW = Math.floor((WIN_W - 2 * SIDE_PAD) / MAX_RESULTS); // 54px, gives 8px breathing room each side
+    const cellW = Math.floor((WIN_W - 2 * SIDE_PAD) / n);
     const blockW = n * cellW;
     const ox = SIDE_PAD + Math.floor((WIN_W - 2 * SIDE_PAD - blockW) / 2);
-    const nameY = y + 3;
-    const prefixW = SPRITE_PX;
+    const nameY = y + 2;
 
     for (let i = 0; i < n; i++) {
-      const item = items[i]!;
+      const item = items[start + i]!;
       const cellX = wx + ox + i * cellW;
-      const sel = state.cursorInResults && i === state.selectedResultIndex;
+      const sel =
+        state.cursorInResults && start + i === state.selectedResultIndex;
 
       const gfx = item.gfxFileName;
       if (gfx.length > 0) {
         const sprite = getItemSprite(gfx);
         if (sprite !== undefined) {
-          sprite.Color = sel ? Color(1, 1, 1, 1) : Color(0.5, 0.4, 0.3, 0.7);
+          sprite.Color = sel
+            ? Color(1, 1, 1, 1)
+            : Color(0.45, 0.35, 0.28, 0.65);
           sprite.SetFrame("Idle", 8);
           sprite.Scale = Vector(SPRITE_SCALE, SPRITE_SCALE);
-          sprite.Render(Vector(cellX + SPRITE_PX / 2, nameY + SPRITE_PX), Vector(0, 0), Vector(0, 0));
+          sprite.Render(
+            Vector(cellX + SPRITE_PX / 2, nameY + SPRITE_PX),
+            Vector(0, 0),
+            Vector(0, 0),
+          );
         }
       }
 
-      const name = shortenName(item.name, 15);
-      rtext(name, cellX + prefixW, nameY, sel ? 0.92 : 0.60, sel ? 0.76 : 0.46, sel ? 0.55 : 0.33, sel ? 1 : 0.85);
-
-      if (sel) {
-        rtext("v", cellX + Math.floor(cellW / 2) - 1, y - 1, 0.75, 0.18, 0.14, 1);
-      }
+      const name = shortenName(item.name, 12);
+      rtext(
+        name,
+        cellX + SPRITE_PX + 1,
+        nameY,
+        sel ? 0.85 : 0.52,
+        sel ? 0.22 : 0.34,
+        sel ? 0.12 : 0.24,
+        sel ? 1 : 0.8,
+      );
     }
   }
 
@@ -475,11 +527,12 @@ export class VirtualKeyboardFeature extends ModFeature {
       const ry = y + row * KEY_ROW_H;
       for (let col = 0; col < keys.length; col++) {
         const x = wx + ox + col * KEY_W;
-        const sel = !state.cursorInResults
+        const sel =
+          !state.cursorInResults
           && state.keyboardCursorRow === row
           && state.keyboardCursorCol === col;
         if (sel) {
-          rtext(keys[col]!, x, ry, 0.80, 0.18, 0.14, 1);
+          rtext(keys[col]!, x, ry, 0.8, 0.18, 0.14, 1);
         } else {
           rtext(keys[col]!, x, ry, 0.22, 0.14, 0.07, 0.9);
         }
@@ -492,15 +545,16 @@ export class VirtualKeyboardFeature extends ModFeature {
     const sy = y + sr * KEY_ROW_H + 2;
     for (let col = 0; col < KEYBOARD_SPECIALS.length; col++) {
       const x = wx + sox + col * SPECIAL_W;
-      const sel = !state.cursorInResults
+      const sel =
+        !state.cursorInResults
         && state.keyboardCursorRow === sr
         && state.keyboardCursorCol === col;
       const label = KEYBOARD_SPECIALS[col];
       const overlayActive = label === "OVERLAY" && state.overlayPinned;
       if (sel) {
-        rtext(`[${label}]`, x, sy, 0.80, 0.18, 0.14, 1);
+        rtext(`[${label}]`, x, sy, 0.8, 0.18, 0.14, 1);
       } else if (overlayActive) {
-        rtext(`[${label}]`, x, sy, 0.92, 0.76, 0.30, 1);
+        rtext(`[${label}]`, x, sy, 0.92, 0.76, 0.3, 1);
       } else {
         rtext(`[${label}]`, x, sy, 0.22, 0.14, 0.07, 0.9);
       }
@@ -513,6 +567,15 @@ export class VirtualKeyboardFeature extends ModFeature {
       : "^:results  A:type  B:del";
     const msgW = msg.length * 4;
     const x = wx + Math.floor((WIN_W - msgW) / 2) + 12;
-    fonts.terminus.DrawStringScaled(msg, x, y, 0.50, 0.50, KColor(0.40, 0.28, 0.20, 0.55), 0, false);
+    fonts.terminus.DrawStringScaled(
+      msg,
+      x,
+      y,
+      0.5,
+      0.5,
+      KColor(0.4, 0.28, 0.2, 0.55),
+      0,
+      false,
+    );
   }
 }

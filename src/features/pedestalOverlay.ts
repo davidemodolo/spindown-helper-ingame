@@ -8,6 +8,7 @@ import {
 import type { ModUpgraded } from "isaacscript-common";
 import {
   Callback,
+  fonts,
   inDeathCertificateArea,
   ModFeature,
   sfxManager,
@@ -19,7 +20,6 @@ import { getSpinColor } from "../utils/color";
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY; // 356
 
 export class PedestalOverlayFeature extends ModFeature {
-  private spinFont: Font | undefined;
   private itemSprite: Sprite | undefined;
   private lastGfxFileName = "";
   private lastPlayedRoom = -1;
@@ -34,7 +34,7 @@ export class PedestalOverlayFeature extends ModFeature {
 
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
-    if (!state.overlayPinned || state.isKeyboardOpen) {
+    if (!state.overlayPinned) {
       return;
     }
     if (
@@ -43,7 +43,6 @@ export class PedestalOverlayFeature extends ModFeature {
     ) {
       return;
     }
-    this.renderBottomHUD();
     const player = Isaac.GetPlayer(0);
     if (player === undefined) {
       return;
@@ -52,6 +51,7 @@ export class PedestalOverlayFeature extends ModFeature {
     if (inDeathCertificateArea()) {
       this.renderDeathCertificate(player);
     } else {
+      this.renderBottomHUD(state.selectedItemName);
       this.renderPedestalSpins(player);
     }
   }
@@ -77,31 +77,21 @@ export class PedestalOverlayFeature extends ModFeature {
     return this.itemSprite;
   }
 
-  private renderBottomHUD(): void {
+  private renderBottomHUD(text: string, r = 1, g = 1, b = 1): void {
     const sprite = this.ensureItemSprite();
     const sw = Isaac.GetScreenWidth();
     const sh = Isaac.GetScreenHeight();
-    const nameW = state.selectedItemName.length * 5;
+    const nameW = text.length * 5;
     const blockW = 20 + nameW;
     const startX = Math.floor((sw - blockW) / 2);
     const y = sh - 26;
     if (sprite !== undefined) {
-      sprite.Color = Color(1, 1, 1, 1);
+      sprite.Color = Color(r, g, b, 1);
       sprite.SetFrame("Idle", 8);
       sprite.Scale = Vector(0.5, 0.5);
-      sprite.Render(Vector(startX + 8, y + 15), Vector(0, 0), Vector(0, 0));
+      sprite.Render(Vector(startX + 8, y + 18), Vector(0, 0), Vector(0, 0));
     }
-    Isaac.RenderScaledText(
-      state.selectedItemName,
-      startX + 20,
-      y,
-      0.75,
-      0.75,
-      1,
-      1,
-      1,
-      0.9,
-    );
+    Isaac.RenderScaledText(text, startX + 20, y, 0.75, 0.75, r, g, b, 0.9);
   }
 
   private getIndicatorSprite(label: string): Sprite | undefined {
@@ -138,11 +128,6 @@ export class PedestalOverlayFeature extends ModFeature {
   private renderPedestalSpins(player: EntityPlayer): void {
     if (state.selectedItemType === undefined) {
       return;
-    }
-
-    if (this.spinFont === undefined) {
-      this.spinFont = Font();
-      this.spinFont.Load("font/pftempestasevencondensed.fnt");
     }
 
     const carBattery = player.HasCollectible(CAR_BATTERY_ID);
@@ -185,8 +170,8 @@ export class PedestalOverlayFeature extends ModFeature {
 
       const color = getSpinColor(result.spins);
       const text = result.label;
-      const textWidth = text.length * 4;
-      this.spinFont.DrawString(
+      const textWidth = text.length * 5;
+      fonts.terminus.DrawString(
         text,
         screenPos.X - textWidth / 2,
         screenPos.Y - 20,
@@ -233,16 +218,15 @@ export class PedestalOverlayFeature extends ModFeature {
     } else {
       this.lastPlayedRoom = -1;
       this.lineDelayFrames = 0;
+      this.renderBottomHUD(state.selectedItemName);
     }
   }
 
   private renderItemFound(player: EntityPlayer, pedestal: EntityPickup): void {
-    if (this.spinFont === undefined) {
-      this.spinFont = Font();
-      this.spinFont.Load("font/pftempestasevencondensed.fnt");
-    }
+    this.renderBottomHUD(`${state.selectedItemName} here!`, 0.1, 1, 0.1);
 
     const playerPos = Isaac.WorldToScreen(player.Position);
+    playerPos.Y -= 10;
     const itemPos = Isaac.WorldToScreen(pedestal.Position);
     itemPos.Y -= 10;
     const greenColor = KColor(0.1, 1, 0.1, 1);
@@ -258,7 +242,7 @@ export class PedestalOverlayFeature extends ModFeature {
         const t = i / (numDots + 1);
         const x = playerPos.X + dx * t;
         const y = playerPos.Y + dy * t;
-        this.spinFont.DrawStringScaled(
+        fonts.terminus.DrawStringScaled(
           ".",
           x - 2,
           y - 2,
@@ -270,17 +254,5 @@ export class PedestalOverlayFeature extends ModFeature {
         );
       }
     }
-
-    Isaac.RenderScaledText(
-      `${state.selectedItemName} here!`,
-      85,
-      255,
-      0.75,
-      0.75,
-      0.1,
-      1,
-      0.1,
-      0.9,
-    );
   }
 }

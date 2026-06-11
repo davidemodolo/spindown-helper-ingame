@@ -6,6 +6,8 @@ export const FAVORITE_ITEM_TYPES: readonly CollectibleType[] = [
   628 as CollectibleType, // Death Certificate
   347 as CollectibleType, // Diplopia
   689 as CollectibleType, // Glitched Crown
+  205 as CollectibleType, // Sharp Plug
+  489 as CollectibleType, // D Infinity
 ];
 
 export const HIDDEN_SPINDOWN_IDS: ReadonlySet<CollectibleType> = new Set([
