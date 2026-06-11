@@ -1,5 +1,5 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
-import { HIDDEN_SPINDOWN_IDS, FAVORITE_ITEM_TYPES } from "../constants";
+import { FAVORITE_ITEM_TYPES, HIDDEN_SPINDOWN_IDS } from "../constants";
 
 export interface ItemEntry {
   name: string;
@@ -11,6 +11,15 @@ export interface ItemEntry {
 
 let cachedRegistry: ItemEntry[] | undefined;
 
+interface TrieNode {
+  items: Map<ItemEntry, number>;
+  children: Map<string, TrieNode>;
+}
+
+let cachedTrie: TrieNode | undefined;
+
+const MIN_SUFFIX_LEN = 2;
+
 function resolveItemName(raw: string): string {
   if (!raw.startsWith("$") && !raw.startsWith("#")) return raw;
   let key = raw.slice(1);
@@ -18,8 +27,8 @@ function resolveItemName(raw: string): string {
   if (key.endsWith("_")) key = key.slice(0, -1);
   return key
     .split("_")
-    .filter(w => w.length > 0)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .filter((w) => w.length > 0)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
 }
 
@@ -28,10 +37,7 @@ function makeSearchKey(name: string): string {
   for (let i = 0; i < name.length; i++) {
     const char = name.charAt(i);
     const lower = char.toLowerCase();
-    if (
-      (lower >= "a" && lower <= "z") ||
-      (lower >= "0" && lower <= "9")
-    ) {
+    if ((lower >= "a" && lower <= "z") || (lower >= "0" && lower <= "9")) {
       result += lower;
     }
   }
@@ -69,7 +75,10 @@ function getItemRegistry(): readonly ItemEntry[] {
       type,
       gfxFileName: collectible.GfxFileName,
       searchKey: makeSearchKey(name),
-      wordKeys: name.split(" ").map(w => makeSearchKey(w)).filter(w => w.length > 0),
+      wordKeys: name
+        .split(" ")
+        .map((w) => makeSearchKey(w))
+        .filter((w) => w.length > 0),
     });
   }
 
@@ -77,11 +86,65 @@ function getItemRegistry(): readonly ItemEntry[] {
   return cachedRegistry;
 }
 
+function insertIntoTrie(
+  root: TrieNode,
+  key: string,
+  item: ItemEntry,
+  priority: number,
+): void {
+  let node = root;
+  for (let i = 0; i < key.length; i++) {
+    const ch = key.charAt(i);
+    let child = node.children.get(ch);
+    if (child === undefined) {
+      child = { items: new Map(), children: new Map() };
+      node.children.set(ch, child);
+    }
+    node = child;
+    const existing = node.items.get(item);
+    if (existing === undefined || priority < existing) {
+      node.items.set(item, priority);
+    }
+  }
+}
+
+function buildTrie(registry: readonly ItemEntry[]): TrieNode {
+  const root: TrieNode = { items: new Map(), children: new Map() };
+
+  for (const entry of registry) {
+    insertIntoTrie(root, entry.searchKey, entry, 0);
+
+    for (const wk of entry.wordKeys) {
+      insertIntoTrie(root, wk, entry, 1);
+    }
+
+    const key = entry.searchKey;
+    for (let start = 1; start <= key.length - MIN_SUFFIX_LEN; start++) {
+      insertIntoTrie(root, key.slice(start), entry, 2);
+    }
+  }
+
+  cachedTrie = root;
+  return root;
+}
+
+function getTrie(): TrieNode {
+  if (cachedTrie !== undefined) {
+    return cachedTrie;
+  }
+  const registry = getItemRegistry();
+  return buildTrie(registry);
+}
+
 function getFavoriteItems(): ItemEntry[] {
   const registry = getItemRegistry();
+  const byType = new Map<CollectibleType, ItemEntry>();
+  for (const entry of registry) {
+    byType.set(entry.type, entry);
+  }
   const favorites: ItemEntry[] = [];
   for (const type of FAVORITE_ITEM_TYPES) {
-    const entry = registry.find(e => e.type === type);
+    const entry = byType.get(type);
     if (entry !== undefined) {
       favorites.push(entry);
     }
@@ -89,35 +152,37 @@ function getFavoriteItems(): ItemEntry[] {
   return favorites;
 }
 
-export function searchItems(
-  query: string,
-  maxResults = 20,
-): ItemEntry[] {
+export function searchItems(query: string, maxResults = 20): ItemEntry[] {
   if (query.length === 0) {
     return getFavoriteItems();
   }
 
   const cleanedQuery = makeSearchKey(query);
-  const registry = getItemRegistry();
+  const trie = getTrie();
 
-  const buckets: [ItemEntry[], ItemEntry[], ItemEntry[]] = [[], [], []];
-  for (const entry of registry) {
-    if (!entry.searchKey.includes(cleanedQuery)) continue;
-    if (entry.searchKey.startsWith(cleanedQuery)) {
-      buckets[0].push(entry);
-    } else if (entry.wordKeys.some(w => w.startsWith(cleanedQuery))) {
-      buckets[1].push(entry);
-    } else {
-      buckets[2].push(entry);
+  let node: TrieNode | undefined = trie;
+  for (let i = 0; i < cleanedQuery.length; i++) {
+    const ch = cleanedQuery.charAt(i);
+    node = node.children.get(ch);
+    if (node === undefined) {
+      return [];
     }
   }
 
   const results: ItemEntry[] = [];
-  for (const bucket of buckets) {
-    for (const entry of bucket) {
-      results.push(entry);
-      if (results.length >= maxResults) return results;
+  const seen = new Set<ItemEntry>();
+  const sorted = [...node.items.entries()].sort((a, b) => a[1] - b[1]);
+
+  for (const [item] of sorted) {
+    if (seen.has(item)) {
+      continue;
+    }
+    seen.add(item);
+    results.push(item);
+    if (results.length >= maxResults) {
+      break;
     }
   }
+
   return results;
 }
