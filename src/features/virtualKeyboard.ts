@@ -20,14 +20,14 @@ const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 5;
 
 // Layout Y-offsets (screen coords relative to wy)
-const INPUT_Y = 6;
-const RESULTS_TOP_Y = 14;
-const RESULTS_BOT_Y = 22;
-const KEYBOARD_Y = 34;
+const INPUT_Y = 9;
+const RESULTS_TOP_Y = 21;
+const RESULTS_BOT_Y = 33;
+const KEYBOARD_Y = 48;
+const HELP_Y = 89;
 const KEY_ROW_H = 9;
 const KEY_W = 11;
 const SPECIAL_W = 50;
-const HELP_Y = 78;
 
 const SPRITE_SCALE = 0.4;
 const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
@@ -224,7 +224,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
     if (state.cursorInResults) {
-      this.handleResultCursorMovement(down, left, right);
+      this.handleResultCursorMovement(up, down, left, right);
     } else {
       this.handleKeyboardCursorMovement(up, down, left, right);
     }
@@ -264,16 +264,29 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private handleResultCursorMovement(
+    up: boolean,
     down: boolean,
     left: boolean,
     right: boolean,
   ): void {
-    if (down) {
-      state.cursorInResults = false;
-      state.keyboardCursorRow = 0;
-      state.keyboardCursorCol = Math.floor(
-        (KEYBOARD_ROWS[0]?.length ?? 10) / 2,
-      );
+    const n = Math.min(state.matchedItems.length, MAX_RESULTS);
+    if (up) {
+      if (state.selectedResultIndex >= 3) {
+        state.selectedResultIndex = Math.max(0, n - 3 - 1);
+      }
+    } else if (down) {
+      if (state.selectedResultIndex < 3) {
+        state.selectedResultIndex = 3;
+        if (state.selectedResultIndex >= n) {
+          state.selectedResultIndex = n - 1;
+        }
+      } else {
+        state.cursorInResults = false;
+        state.keyboardCursorRow = 0;
+        state.keyboardCursorCol = Math.floor(
+          (KEYBOARD_ROWS[0]?.length ?? 10) / 2,
+        );
+      }
     } else if (left) {
       state.selectedResultIndex--;
     } else if (right) {
@@ -281,7 +294,6 @@ export class VirtualKeyboardFeature extends ModFeature {
     } else {
       return;
     }
-    const n = Math.min(state.matchedItems.length, MAX_RESULTS);
     if (state.selectedResultIndex < 0) {
       state.selectedResultIndex = n - 1;
     } else if (state.selectedResultIndex >= n) {
@@ -429,8 +441,13 @@ export class VirtualKeyboardFeature extends ModFeature {
     }
 
     this.renderInput(wx, wy + INPUT_Y);
-    this.renderResultsRow(wx, wy + RESULTS_BOT_Y, 0, 3);
-    this.renderResultsRow(wx, wy + RESULTS_TOP_Y, 3, 5);
+    const bottomN = Math.min(state.matchedItems.length, 3);
+    const cellW =
+      bottomN > 0
+        ? Math.floor((WIN_W - 2 * 8) / bottomN)
+        : Math.floor((WIN_W - 2 * 8) / 3);
+    this.renderResultsRow(wx, wy + RESULTS_BOT_Y, 0, 3, cellW);
+    this.renderResultsRow(wx, wy + RESULTS_TOP_Y, 3, 5, cellW);
     this.renderKeyboardGrid(wx, wy + KEYBOARD_Y);
     this.renderHelpBar(wx, wy + HELP_Y);
   }
@@ -457,6 +474,7 @@ export class VirtualKeyboardFeature extends ModFeature {
     y: number,
     start: number,
     end: number,
+    cellW?: number,
   ): void {
     const items = state.matchedItems;
     const max = Math.min(items.length, end);
@@ -478,14 +496,15 @@ export class VirtualKeyboardFeature extends ModFeature {
 
     const n = max - start;
     const SIDE_PAD = 8;
-    const cellW = Math.floor((WIN_W - 2 * SIDE_PAD) / n);
-    const blockW = n * cellW;
+    const useCW = cellW ?? Math.floor((WIN_W - 2 * SIDE_PAD) / n);
+    const blockW = n * useCW;
     const ox = SIDE_PAD + Math.floor((WIN_W - 2 * SIDE_PAD - blockW) / 2);
     const nameY = y + 2;
+    const FONT_SCALE = 0.48;
 
     for (let i = 0; i < n; i++) {
       const item = items[start + i]!;
-      const cellX = wx + ox + i * cellW;
+      const cellX = wx + ox + i * useCW;
       const sel =
         state.cursorInResults && start + i === state.selectedResultIndex;
 
@@ -507,14 +526,20 @@ export class VirtualKeyboardFeature extends ModFeature {
       }
 
       const name = shortenName(item.name, 12);
-      rtext(
+      fonts.droid.DrawStringScaled(
         name,
         cellX + SPRITE_PX + 1,
         nameY,
-        sel ? 0.85 : 0.52,
-        sel ? 0.22 : 0.34,
-        sel ? 0.12 : 0.24,
-        sel ? 1 : 0.8,
+        FONT_SCALE,
+        FONT_SCALE,
+        KColor(
+          sel ? 0.85 : 0.52,
+          sel ? 0.22 : 0.34,
+          sel ? 0.12 : 0.24,
+          sel ? 1 : 0.8,
+        ),
+        0,
+        false,
       );
     }
   }
