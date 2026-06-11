@@ -17,6 +17,7 @@ interface TrieNode {
 }
 
 let cachedTrie: TrieNode | undefined;
+let cachedFavorites: ItemEntry[] | undefined;
 
 const MIN_SUFFIX_LEN = 2;
 
@@ -137,6 +138,9 @@ function getTrie(): TrieNode {
 }
 
 function getFavoriteItems(): ItemEntry[] {
+  if (cachedFavorites !== undefined) {
+    return cachedFavorites;
+  }
   const registry = getItemRegistry();
   const byType = new Map<CollectibleType, ItemEntry>();
   for (const entry of registry) {
@@ -149,6 +153,7 @@ function getFavoriteItems(): ItemEntry[] {
       favorites.push(entry);
     }
   }
+  cachedFavorites = favorites;
   return favorites;
 }
 

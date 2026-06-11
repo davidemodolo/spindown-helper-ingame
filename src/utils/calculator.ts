@@ -43,9 +43,18 @@ export function computeSpins(
     }
   }
 
-  // If path crosses Dad's Note, Spindown lands on it instead of the target
+  // If path crosses Dad's Note, Spindown lands on it instead of the target.
+  // stepsToNote must account for hidden items between fromID and dadsNoteID,
+  // because hidden items are skipped per individual decrement (not per pair)
+  // when Car Battery is active — so parity is determined by effective steps.
   if (toID < dadsNoteID && fromID > dadsNoteID) {
-    const stepsToNote = fromID - dadsNoteID;
+    let stepsToNote = fromID - dadsNoteID;
+    for (const hiddenType of HIDDEN_SPINDOWN_IDS) {
+      const hiddenID = hiddenType as number;
+      if (hiddenID < fromID && hiddenID > dadsNoteID) {
+        stepsToNote--;
+      }
+    }
     if (!carBattery || stepsToNote % 2 === 0) {
       return { label: "DN", spins: -1, reachable: false };
     }

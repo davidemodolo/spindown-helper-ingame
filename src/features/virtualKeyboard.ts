@@ -5,6 +5,13 @@ import {
 } from "isaac-typescript-definitions";
 import type { ModUpgraded } from "isaacscript-common";
 import { Callback, fonts, ModFeature } from "isaacscript-common";
+
+// SetTimeStop is in the REPENTANCE Lua API but missing from the current TS bindings.
+declare global {
+  interface Game {
+    SetTimeStop(numFrames: number): void;
+  }
+}
 import {
   KEYBOARD_COOLDOWN_FRAMES,
   KEYBOARD_ROWS,
@@ -154,6 +161,11 @@ export class VirtualKeyboardFeature extends ModFeature {
       return;
     }
 
+    // Freeze all entity movement while the keyboard is open.
+    // SetTimeStop counts down by 1 per game update, so refreshing to 2 every
+    // render frame keeps it at ≥1 through the next update tick.
+    Game().SetTimeStop(2);
+
     this.handleCursorMovement();
     this.handleSelectionInput();
     this.renderWindow();
@@ -271,16 +283,17 @@ export class VirtualKeyboardFeature extends ModFeature {
   ): void {
     const n = Math.min(state.matchedItems.length, MAX_RESULTS);
     if (up) {
-      if (state.selectedResultIndex >= 3) {
-        state.selectedResultIndex = Math.max(0, n - 3 - 1);
-      }
-    } else if (down) {
       if (state.selectedResultIndex < 3) {
-        state.selectedResultIndex = 3;
-        if (state.selectedResultIndex >= n) {
-          state.selectedResultIndex = n - 1;
-        }
+        // Bottom row → top row (visually upward), column-preserving
+        state.selectedResultIndex = Math.min(state.selectedResultIndex + 3, n - 1);
+      }
+      // Already at top row: no-op (nothing above)
+    } else if (down) {
+      if (state.selectedResultIndex >= 3) {
+        // Top row → bottom row (visually downward), column-preserving
+        state.selectedResultIndex -= 3;
       } else {
+        // Bottom row → back to keyboard (visually downward)
         state.cursorInResults = false;
         state.keyboardCursorRow = 0;
         state.keyboardCursorCol = Math.floor(
@@ -588,7 +601,7 @@ export class VirtualKeyboardFeature extends ModFeature {
 
   private renderHelpBar(wx: number, y: number): void {
     const msg = state.cursorInResults
-      ? "< > nav  A:pick  B:close  v:keys"
+      ? "^ v rows  < > nav  A:pick  B:close"
       : "^:results  A:type  B:del";
     const msgW = msg.length * 4;
     const x = wx + Math.floor((WIN_W - msgW) / 2) + 12;

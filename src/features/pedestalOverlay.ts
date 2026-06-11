@@ -1,4 +1,5 @@
 import {
+  ActiveSlot,
   CollectibleType,
   EntityType,
   ModCallback,
@@ -18,6 +19,8 @@ import { computeSpins } from "../utils/calculator";
 import { getSpinColor } from "../utils/color";
 
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY; // 356
+const SPINDOWN_DICE_ID = CollectibleType.SPINDOWN_DICE; // 723
+const INDICATOR_SCALE = 1 / 3;
 
 export class PedestalOverlayFeature extends ModFeature {
   private itemSprite: Sprite | undefined;
@@ -51,17 +54,30 @@ export class PedestalOverlayFeature extends ModFeature {
       return;
     }
 
+    const inDC = inDeathCertificateArea();
+    if (!inDC && !this.hasSpindownDice(player)) {
+      return;
+    }
+
     if (state.isKeyboardOpen) {
       this.renderBottomHUD(state.selectedItemName);
       return;
     }
 
-    if (inDeathCertificateArea()) {
+    if (inDC) {
       this.renderDeathCertificate(player);
     } else {
       this.renderBottomHUD(state.selectedItemName);
       this.renderPedestalSpins(player);
     }
+  }
+
+  private hasSpindownDice(player: EntityPlayer): boolean {
+    return (
+      player.GetActiveItem(ActiveSlot.PRIMARY) === SPINDOWN_DICE_ID
+      || player.GetActiveItem(ActiveSlot.SECONDARY) === SPINDOWN_DICE_ID
+      || player.GetActiveItem(ActiveSlot.POCKET) === SPINDOWN_DICE_ID
+    );
   }
 
   private ensureItemSprite(): Sprite | undefined {
@@ -166,7 +182,7 @@ export class PedestalOverlayFeature extends ModFeature {
         const sprite = this.getIndicatorSprite(result.label);
         if (sprite !== undefined) {
           sprite.Color = Color(200 / 255, 0, 0, 1);
-          sprite.Scale = Vector(1, 1);
+          sprite.Scale = Vector(INDICATOR_SCALE, INDICATOR_SCALE);
           sprite.Render(
             Vector(screenPos.X, screenPos.Y - 16),
             Vector(0, 0),

@@ -28,6 +28,3 @@ export function getSpinColor(spins: number): KColor {
   return spinColorCache[4]!;
 }
 
-export function getUnreachableColor(): KColor {
-  return KColor(200 / 255, 0, 0, 1);
-}
