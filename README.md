@@ -1,37 +1,56 @@
 # Spindown Helper In-Game
 
-An in-game mod for [_The Binding of Isaac: Repentance_](https://store.steampowered.com/app/1426300/The_Binding_of_Isaac_Repentance/) that shows how many Spindown Dice spins are needed to reach a desired item — no external companion app required.
+In-game mod for [_The Binding of Isaac: Repentance_](https://store.steampowered.com/app/1426300/The_Binding_of_Isaac_Repentance/) that shows how many Spindown Dice spins are needed to reach a desired item — no external companion app required.
 
-Written in [TypeScript](https://www.typescriptlang.org/) using [IsaacScript](https://isaacscript.github.io/). This is a full rewrite of the [original Lua mod](old_version/).
+Written in [TypeScript](https://www.typescriptlang.org/) using [IsaacScript](https://isaacscript.github.io/).
 
 ## How to Use
 
 ### Select a target item
 
-Press **F2** (or double-tap Select/Map on controller) to open the in-game virtual keyboard:
+Double-tap the **Map button** (`Tab` on keyboard, Select on controller) to open the in-game virtual keyboard:
 
 - **Arrow keys / D-pad** — move the cursor across the letter grid
 - **Confirm / Item button** — type the highlighted letter
 - **Back / Bomb button** — delete the last character
-- **`[OK]`** — pick the first search result
+- **`[SPACE]`** — type a space
+- **`[CLEAR]`** — clear the selected item and close
+- **`[OVERLAY]`** — toggle the overlay on/off and close (glows gold when active)
 
 As you type, up to 3 matching items appear above the keyboard. Push **Up** to enter the results row, then **Left/Right** to navigate between matches. Press **Confirm** to select one.
 
-Press **F2** again (or double-tap Select) to close the keyboard.
+When the search is empty, three favorites are shown by default: **Death Certificate**, **Diplopia**, and **Glitched Crown**.
+
+Double-tap **Map** again to close the keyboard.
 
 ### View spin counts
 
-Hold **F1** to overlay the number of spins needed on every collectible pedestal in the room. The label appears above each item:
+Once an item is selected and the overlay is on (via `[OVERLAY]` or by selecting a result), every collectible pedestal in the room shows a label above it:
 
-| Label | Meaning |
-|-------|---------|
-| `X` | Number of Spindown Dice spins to reach the target |
-| `NO` | Unreachable — target ID is equal or higher, or blocked by a hidden item |
-| `CB` | Skipped due to Car Battery (odd step count) |
+| Indicator | Meaning |
+|-----------|---------|
+| `X` | Number of Spindown Dice spins to reach the target (color-coded by distance: green → yellow-green → yellow → orange → red-orange) |
+| ⃠ | Unreachable — target ID is equal or higher, or blocked by a hidden item |
+| ⃠ over Car Battery | Skipped due to **Car Battery** (odd step count doubled, unreachable) |
+| ⃠ over Dad's Note | **Dad's Note** on the path — Spindown would land on Dad's Note instead |
 
-Spin counts are color-coded by distance: green → yellow-green → yellow → orange → red-orange. Unreachable items are shown in dark red.
+Unreachable items show a "prohibited" sprite (red circle with diagonal line) instead of text. When the cause is Car Battery or Dad's Note, their respective item sprites appear underneath the prohibited overlay.
 
-If no target is selected, a hint is shown in the top-left corner.
+The selected item is also shown in the bottom HUD (sprite + name) at the center of the screen.
+
+### Death Certificate
+
+When inside the Death Certificate floor, the mod stops showing spin counts and instead helps you find the room containing your selected item:
+
+- **"Item here!"** text appears on screen
+- A **dotted green line** draws from your position to the item (after a short delay)
+- A **Holy Card sound** plays when you enter the correct room
+
+![Screenshot 1](resources/github_imgs/1.png)
+
+![Screenshot 2](resources/github_imgs/2.png)
+
+![Screenshot 3](resources/github_imgs/3.png)
 
 ## How to Compile
 
@@ -40,8 +59,3 @@ If no target is selected, a hint is shown in the top-left corner.
 - Run `npm ci` to install dependencies
 - Run `npm start` to launch the IsaacScript monitor (auto-recompiles on changes)
 - Copy or symlink the `mod/` folder into your Isaac mods directory
-
-## Related
-
-- [Steam Workshop](https://steamcommunity.com/app/250900/workshop/)
-- [Original Lua version](old_version/)

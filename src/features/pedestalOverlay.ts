@@ -5,11 +5,16 @@ import {
   PickupVariant,
   SoundEffect,
 } from "isaac-typescript-definitions";
-import { Callback, inDeathCertificateArea, ModFeature, sfxManager } from "isaacscript-common";
 import type { ModUpgraded } from "isaacscript-common";
+import {
+  Callback,
+  inDeathCertificateArea,
+  ModFeature,
+  sfxManager,
+} from "isaacscript-common";
 import state from "../state";
 import { computeSpins } from "../utils/calculator";
-import { getSpinColor, getUnreachableColor } from "../utils/color";
+import { getSpinColor } from "../utils/color";
 
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY; // 356
 
@@ -19,6 +24,9 @@ export class PedestalOverlayFeature extends ModFeature {
   private lastGfxFileName = "";
   private lastPlayedRoom = -1;
   private lineDelayFrames = 0;
+  private noSprite: Sprite | undefined;
+  private noCBSprite: Sprite | undefined;
+  private noDNSprite: Sprite | undefined;
 
   constructor(mod: ModUpgraded) {
     super(mod, false);
@@ -29,7 +37,10 @@ export class PedestalOverlayFeature extends ModFeature {
     if (!state.overlayPinned || state.isKeyboardOpen) {
       return;
     }
-    if (state.selectedItemType === undefined || state.selectedItemName.length === 0) {
+    if (
+      state.selectedItemType === undefined
+      || state.selectedItemName.length === 0
+    ) {
       return;
     }
     this.renderBottomHUD();
@@ -49,7 +60,9 @@ export class PedestalOverlayFeature extends ModFeature {
     if (state.selectedItemType === undefined) {
       return undefined;
     }
-    const collectible = Isaac.GetItemConfig().GetCollectible(state.selectedItemType);
+    const collectible = Isaac.GetItemConfig().GetCollectible(
+      state.selectedItemType,
+    );
     if (collectible === undefined) {
       return undefined;
     }
@@ -78,7 +91,48 @@ export class PedestalOverlayFeature extends ModFeature {
       sprite.Scale = Vector(0.5, 0.5);
       sprite.Render(Vector(startX + 8, y + 15), Vector(0, 0), Vector(0, 0));
     }
-    Isaac.RenderScaledText(state.selectedItemName, startX + 20, y, 0.75, 0.75, 1, 1, 1, 0.9);
+    Isaac.RenderScaledText(
+      state.selectedItemName,
+      startX + 20,
+      y,
+      0.75,
+      0.75,
+      1,
+      1,
+      1,
+      0.9,
+    );
+  }
+
+  private getIndicatorSprite(label: string): Sprite | undefined {
+    if (label === "NO") {
+      if (this.noSprite === undefined) {
+        this.noSprite = Sprite();
+        this.noSprite.Load("gfx/ui/nospin.anm2", true);
+        this.noSprite.SetFrame("idle", 0);
+        this.noSprite.LoadGraphics();
+      }
+      return this.noSprite;
+    }
+    if (label === "CB") {
+      if (this.noCBSprite === undefined) {
+        this.noCBSprite = Sprite();
+        this.noCBSprite.Load("gfx/ui/nospin_cb.anm2", true);
+        this.noCBSprite.SetFrame("idle", 0);
+        this.noCBSprite.LoadGraphics();
+      }
+      return this.noCBSprite;
+    }
+    if (label === "DN") {
+      if (this.noDNSprite === undefined) {
+        this.noDNSprite = Sprite();
+        this.noDNSprite.Load("gfx/ui/nospin_dn.anm2", true);
+        this.noDNSprite.SetFrame("idle", 0);
+        this.noDNSprite.LoadGraphics();
+      }
+      return this.noDNSprite;
+    }
+    return undefined;
   }
 
   private renderPedestalSpins(player: EntityPlayer): void {
@@ -96,8 +150,8 @@ export class PedestalOverlayFeature extends ModFeature {
     const entities = Isaac.GetRoomEntities();
     for (const entity of entities) {
       if (
-        entity.Type !== EntityType.PICKUP ||
-        entity.Variant !== PickupVariant.COLLECTIBLE
+        entity.Type !== EntityType.PICKUP
+        || entity.Variant !== PickupVariant.COLLECTIBLE
       ) {
         continue;
       }
@@ -114,10 +168,22 @@ export class PedestalOverlayFeature extends ModFeature {
       );
 
       const screenPos = Isaac.WorldToScreen(entity.Position);
-      const color = result.reachable
-        ? getSpinColor(result.spins)
-        : getUnreachableColor();
 
+      if (!result.reachable) {
+        const sprite = this.getIndicatorSprite(result.label);
+        if (sprite !== undefined) {
+          sprite.Color = Color(200 / 255, 0, 0, 1);
+          sprite.Scale = Vector(1, 1);
+          sprite.Render(
+            Vector(screenPos.X, screenPos.Y - 16),
+            Vector(0, 0),
+            Vector(0, 0),
+          );
+        }
+        continue;
+      }
+
+      const color = getSpinColor(result.spins);
       const text = result.label;
       const textWidth = text.length * 4;
       this.spinFont.DrawString(
@@ -141,8 +207,8 @@ export class PedestalOverlayFeature extends ModFeature {
 
     for (const entity of entities) {
       if (
-        entity.Type !== EntityType.PICKUP ||
-        entity.Variant !== PickupVariant.COLLECTIBLE
+        entity.Type !== EntityType.PICKUP
+        || entity.Variant !== PickupVariant.COLLECTIBLE
       ) {
         continue;
       }
@@ -192,7 +258,16 @@ export class PedestalOverlayFeature extends ModFeature {
         const t = i / (numDots + 1);
         const x = playerPos.X + dx * t;
         const y = playerPos.Y + dy * t;
-        this.spinFont.DrawStringScaled(".", x - 2, y - 2, 1, 1, greenColor, 0, false);
+        this.spinFont.DrawStringScaled(
+          ".",
+          x - 2,
+          y - 2,
+          1,
+          1,
+          greenColor,
+          0,
+          false,
+        );
       }
     }
 
