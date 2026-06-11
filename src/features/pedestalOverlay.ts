@@ -3,25 +3,22 @@ import {
   EntityType,
   ModCallback,
   PickupVariant,
+  SoundEffect,
 } from "isaac-typescript-definitions";
-import { ModFeature, Callback } from "isaacscript-common";
+import { Callback, inDeathCertificateArea, ModFeature, sfxManager } from "isaacscript-common";
 import type { ModUpgraded } from "isaacscript-common";
 import state from "../state";
 import { computeSpins } from "../utils/calculator";
 import { getSpinColor, getUnreachableColor } from "../utils/color";
 
-const v = {
-  run: {},
-};
-
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY; // 356
 
 export class PedestalOverlayFeature extends ModFeature {
-  v = v;
-
   private spinFont: Font | undefined;
   private itemSprite: Sprite | undefined;
   private lastGfxFileName = "";
+  private lastPlayedRoom = -1;
+  private lineDelayFrames = 0;
 
   constructor(mod: ModUpgraded) {
     super(mod, false);
@@ -37,15 +34,25 @@ export class PedestalOverlayFeature extends ModFeature {
     }
     this.renderBottomHUD();
     const player = Isaac.GetPlayer(0);
-    if (player !== undefined) {
+    if (player === undefined) {
+      return;
+    }
+
+    if (inDeathCertificateArea()) {
+      this.renderDeathCertificate(player);
+    } else {
       this.renderPedestalSpins(player);
     }
   }
 
   private ensureItemSprite(): Sprite | undefined {
-    if (state.selectedItemType === undefined) return undefined;
+    if (state.selectedItemType === undefined) {
+      return undefined;
+    }
     const collectible = Isaac.GetItemConfig().GetCollectible(state.selectedItemType);
-    if (collectible === undefined) return undefined;
+    if (collectible === undefined) {
+      return undefined;
+    }
     const gfxFileName = collectible.GfxFileName;
     if (this.itemSprite === undefined || this.lastGfxFileName !== gfxFileName) {
       this.itemSprite = Sprite();
@@ -122,5 +129,83 @@ export class PedestalOverlayFeature extends ModFeature {
         false,
       );
     }
+  }
+
+  private renderDeathCertificate(player: EntityPlayer): void {
+    if (state.selectedItemType === undefined) {
+      return;
+    }
+
+    const entities = Isaac.GetRoomEntities();
+    let foundEntity: EntityPickup | null = null;
+
+    for (const entity of entities) {
+      if (
+        entity.Type !== EntityType.PICKUP ||
+        entity.Variant !== PickupVariant.COLLECTIBLE
+      ) {
+        continue;
+      }
+      const pickup = entity.ToPickup();
+      if (pickup !== undefined && pickup.SubType === state.selectedItemType) {
+        foundEntity = pickup;
+        break;
+      }
+    }
+
+    if (foundEntity) {
+      const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
+      if (roomIndex !== this.lastPlayedRoom) {
+        sfxManager.Play(SoundEffect.HOLY_CARD, 1, 0, false, 1, 0);
+        this.lastPlayedRoom = roomIndex;
+        this.lineDelayFrames = 15;
+      }
+      if (this.lineDelayFrames > 0) {
+        this.lineDelayFrames--;
+      }
+      this.renderItemFound(player, foundEntity);
+    } else {
+      this.lastPlayedRoom = -1;
+      this.lineDelayFrames = 0;
+    }
+  }
+
+  private renderItemFound(player: EntityPlayer, pedestal: EntityPickup): void {
+    if (this.spinFont === undefined) {
+      this.spinFont = Font();
+      this.spinFont.Load("font/pftempestasevencondensed.fnt");
+    }
+
+    const playerPos = Isaac.WorldToScreen(player.Position);
+    const itemPos = Isaac.WorldToScreen(pedestal.Position);
+    itemPos.Y -= 10;
+    const greenColor = KColor(0.1, 1, 0.1, 1);
+
+    if (this.lineDelayFrames === 0) {
+      const dx = itemPos.X - playerPos.X;
+      const dy = itemPos.Y - playerPos.Y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const dotSpacing = 10;
+      const numDots = Math.floor(distance / dotSpacing);
+
+      for (let i = 1; i <= numDots; i++) {
+        const t = i / (numDots + 1);
+        const x = playerPos.X + dx * t;
+        const y = playerPos.Y + dy * t;
+        this.spinFont.DrawStringScaled(".", x - 2, y - 2, 1, 1, greenColor, 0, false);
+      }
+    }
+
+    Isaac.RenderScaledText(
+      `${state.selectedItemName} here!`,
+      85,
+      255,
+      0.75,
+      0.75,
+      0.1,
+      1,
+      0.1,
+      0.9,
+    );
   }
 }

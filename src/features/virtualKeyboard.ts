@@ -3,7 +3,7 @@ import {
   InputHook,
   ModCallback,
 } from "isaac-typescript-definitions";
-import { ModFeature, Callback } from "isaacscript-common";
+import { ModFeature, Callback, fonts } from "isaacscript-common";
 import type { ModUpgraded } from "isaacscript-common";
 import state from "../state";
 import {
@@ -13,12 +13,8 @@ import {
 } from "../constants";
 import { searchItems } from "../utils/items";
 
-const v = {
-  run: {},
-};
-
-const WIN_W = 180;
-const WIN_H = 92;
+const WIN_W = 190;
+const WIN_H = 97;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 3;
@@ -89,8 +85,6 @@ function shortenName(name: string, maxChars: number): string {
 }
 
 export class VirtualKeyboardFeature extends ModFeature {
-  v = v;
-
   private wasConfirmPressed = false;
   private wasBackPressed = false;
   private selectCooldown = 0;
@@ -517,8 +511,8 @@ export class VirtualKeyboardFeature extends ModFeature {
     const msg = state.cursorInResults
       ? "< > nav  A:pick  B:close  v:keys"
       : "^:results  A:type  B:del";
-    const msgW = msg.length * CH_W;
+    const msgW = msg.length * 4;
     const x = wx + Math.floor((WIN_W - msgW) / 2) + 12;
-    rtext(msg, x, y, 0.40, 0.28, 0.20, 0.55);
+    fonts.terminus.DrawStringScaled(msg, x, y, 0.50, 0.50, KColor(0.40, 0.28, 0.20, 0.55), 0, false);
   }
 }
