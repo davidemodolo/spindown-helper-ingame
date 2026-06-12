@@ -1,5 +1,6 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
 import { FAVORITE_ITEM_TYPES, HIDDEN_SPINDOWN_IDS } from "../constants";
+import { getLockedItems } from "./calculator";
 
 export interface ItemEntry {
   name: string;
@@ -51,6 +52,7 @@ function getItemRegistry(): readonly ItemEntry[] {
   }
 
   const itemConfig = Isaac.GetItemConfig();
+  const lockedItems = getLockedItems();
   const entries: ItemEntry[] = [];
 
   const numCollectibles = itemConfig.GetCollectibles().Size;
@@ -58,6 +60,10 @@ function getItemRegistry(): readonly ItemEntry[] {
     const type = id as CollectibleType;
 
     if (HIDDEN_SPINDOWN_IDS.has(type)) {
+      continue;
+    }
+
+    if (lockedItems.has(type)) {
       continue;
     }
 

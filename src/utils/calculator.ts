@@ -1,4 +1,5 @@
-import { CollectibleType } from "isaac-typescript-definitions";
+import { CollectibleType, ItemPoolType } from "isaac-typescript-definitions";
+import { getDefaultItemPoolsForCollectibleType } from "isaacscript-common";
 import { HIDDEN_SPINDOWN_IDS } from "../constants";
 
 export interface SpinResult {
@@ -8,6 +9,38 @@ export interface SpinResult {
   spins: number;
   /** Whether the target is reachable */
   reachable: boolean;
+}
+
+let cachedLockedItems: ReadonlySet<CollectibleType> | undefined;
+
+export function getLockedItems(): ReadonlySet<CollectibleType> {
+  if (cachedLockedItems !== undefined) {
+    return cachedLockedItems;
+  }
+  return new Set<CollectibleType>();
+}
+
+export function buildLockedItems(
+  isUnlocked: (type: CollectibleType, poolType: ItemPoolType) => boolean,
+): void {
+  const locked = new Set<CollectibleType>();
+  const numCollectibles = Isaac.GetItemConfig().GetCollectibles().Size;
+
+  for (let id = 1; id <= numCollectibles; id++) {
+    const type = id as CollectibleType;
+    if (HIDDEN_SPINDOWN_IDS.has(type)) {
+      continue;
+    }
+    const pools = getDefaultItemPoolsForCollectibleType(type);
+    if (pools.length === 0) {
+      continue;
+    }
+    if (!isUnlocked(type, pools[0]!)) {
+      locked.add(type);
+    }
+  }
+
+  cachedLockedItems = locked;
 }
 
 export function computeSpins(
@@ -22,12 +55,15 @@ export function computeSpins(
     return { label: "NO", spins: -1, reachable: false };
   }
 
-  // Hidden items cannot be targets (Spindown skips them)
   if (HIDDEN_SPINDOWN_IDS.has(toType)) {
     return { label: "NO", spins: -1, reachable: false };
   }
 
-  // Dad's Note cannot be a source (immune to all rerolls)
+  const lockedItems = getLockedItems();
+  if (lockedItems.has(toType)) {
+    return { label: "NO", spins: -1, reachable: false };
+  }
+
   if (fromType === CollectibleType.DADS_NOTE) {
     return { label: "NO", spins: -1, reachable: false };
   }
@@ -43,15 +79,24 @@ export function computeSpins(
     }
   }
 
-  // If path crosses Dad's Note, Spindown lands on it instead of the target.
-  // stepsToNote must account for hidden items between fromID and dadsNoteID,
-  // because hidden items are skipped per individual decrement (not per pair)
-  // when Car Battery is active — so parity is determined by effective steps.
+  for (const lockedType of lockedItems) {
+    const lockedID = lockedType as number;
+    if (lockedID < fromID && lockedID > toID) {
+      steps--;
+    }
+  }
+
   if (toID < dadsNoteID && fromID > dadsNoteID) {
     let stepsToNote = fromID - dadsNoteID;
     for (const hiddenType of HIDDEN_SPINDOWN_IDS) {
       const hiddenID = hiddenType as number;
       if (hiddenID < fromID && hiddenID > dadsNoteID) {
+        stepsToNote--;
+      }
+    }
+    for (const lockedType of lockedItems) {
+      const lockedID = lockedType as number;
+      if (lockedID < fromID && lockedID > dadsNoteID) {
         stepsToNote--;
       }
     }

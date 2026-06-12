@@ -15,7 +15,7 @@ import {
   musicManager,
 } from "isaacscript-common";
 import state from "../state";
-import { computeSpins } from "../utils/calculator";
+import { buildLockedItems, computeSpins } from "../utils/calculator";
 import { getSpinColor } from "../utils/color";
 
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY; // 356
@@ -30,6 +30,7 @@ const ARRIVAL_DIST = 3;
 const FAMILIAR_SCALE = 0.5;
 
 export class PedestalOverlayFeature extends ModFeature {
+  private readonly modRef: ModUpgraded;
   private itemSprite: Sprite | undefined;
   private lastGfxFileName = "";
   private lastPlayedRoom = -1;
@@ -50,6 +51,20 @@ export class PedestalOverlayFeature extends ModFeature {
 
   constructor(mod: ModUpgraded) {
     super(mod, false);
+    this.modRef = mod;
+  }
+
+  @Callback(ModCallback.POST_GAME_STARTED)
+  postGameStarted(): void {
+    const api = this.modRef as unknown as {
+      isCollectibleUnlocked: (
+        collectibleType: number,
+        itemPoolType: number,
+      ) => boolean;
+    };
+    buildLockedItems((type, poolType) =>
+      api.isCollectibleUnlocked(type as number, poolType as number),
+    );
   }
 
   @Callback(ModCallback.POST_RENDER)
