@@ -3,8 +3,8 @@ import {
   CollectibleType,
   EntityType,
   ModCallback,
+  Music,
   PickupVariant,
-  SoundEffect,
 } from "isaac-typescript-definitions";
 import type { ModUpgraded } from "isaacscript-common";
 import {
@@ -12,7 +12,7 @@ import {
   fonts,
   inDeathCertificateArea,
   ModFeature,
-  sfxManager,
+  musicManager,
 } from "isaacscript-common";
 import state from "../state";
 import { computeSpins } from "../utils/calculator";
@@ -21,6 +21,13 @@ import { getSpinColor } from "../utils/color";
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY; // 356
 const SPINDOWN_DICE_ID = CollectibleType.SPINDOWN_DICE; // 723
 const INDICATOR_SCALE = 1 / 3;
+
+const ORBIT_RADIUS = 18;
+const ORBIT_RADIUS_GROW = 0.5;
+const ORBIT_SPEED = 0.04;
+const FLY_SPEED = 0.04;
+const ARRIVAL_DIST = 3;
+const FAMILIAR_SCALE = 0.5;
 
 export class PedestalOverlayFeature extends ModFeature {
   private itemSprite: Sprite | undefined;
@@ -33,6 +40,13 @@ export class PedestalOverlayFeature extends ModFeature {
   private cachedDCRoom = -1;
   private cachedDCItemType: CollectibleType | undefined;
   private cachedDCEntity: EntityPickup | null | undefined;
+  private familiarPos: Vector | null = null;
+  private familiarOrbiting = false;
+  private familiarOrbitAngle = 0;
+  private orbitRadius = 0;
+  private lastDCTargetEntity: EntityPickup | null = null;
+  private yoListenSprite: Sprite | undefined;
+  private haloSprite: Sprite | undefined;
 
   constructor(mod: ModUpgraded) {
     super(mod, false);
@@ -213,10 +227,7 @@ export class PedestalOverlayFeature extends ModFeature {
     }
 
     const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
-    if (
-      roomIndex !== this.cachedDCRoom
-      || itemType !== this.cachedDCItemType
-    ) {
+    if (roomIndex !== this.cachedDCRoom || itemType !== this.cachedDCItemType) {
       this.cachedDCRoom = roomIndex;
       this.cachedDCItemType = itemType;
       this.cachedDCEntity = null;
@@ -240,10 +251,20 @@ export class PedestalOverlayFeature extends ModFeature {
     const foundEntity = this.cachedDCEntity ?? null;
 
     if (foundEntity) {
+      if (
+        foundEntity !== this.lastDCTargetEntity
+        && this.familiarPos !== null
+      ) {
+        this.familiarOrbiting = false;
+      }
+      this.lastDCTargetEntity = foundEntity;
+
       if (roomIndex !== this.lastPlayedRoom) {
-        sfxManager.Play(SoundEffect.HOLY_CARD, 1, 0, false, 1, 0);
+        musicManager.Play(Music.JINGLE_SECRET_ROOM_FIND, 0.4);
+        musicManager.UpdateVolume();
         this.lastPlayedRoom = roomIndex;
         this.lineDelayFrames = 15;
+        this.familiarPos = null;
       }
       if (this.lineDelayFrames > 0) {
         this.lineDelayFrames--;
@@ -252,41 +273,109 @@ export class PedestalOverlayFeature extends ModFeature {
     } else {
       this.lastPlayedRoom = -1;
       this.lineDelayFrames = 0;
+      this.familiarPos = null;
+      this.lastDCTargetEntity = null;
       this.renderBottomHUD(state.selectedItemName);
     }
   }
 
   private renderItemFound(player: EntityPlayer, pedestal: EntityPickup): void {
-    this.renderBottomHUD(`${state.selectedItemName} here!`, 0.1, 1, 0.1);
-
-    const playerPos = Isaac.WorldToScreen(player.Position);
-    playerPos.Y -= 10;
-    const itemPos = Isaac.WorldToScreen(pedestal.Position);
-    itemPos.Y -= 10;
-    const greenColor = KColor(0.1, 1, 0.1, 1);
+    this.renderBottomHUD(`${state.selectedItemName} here!`, 0.39, 0.94, 1);
 
     if (this.lineDelayFrames === 0) {
-      const dx = itemPos.X - playerPos.X;
-      const dy = itemPos.Y - playerPos.Y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const dotSpacing = 10;
-      const numDots = Math.floor(distance / dotSpacing);
+      const itemPos = Isaac.WorldToScreen(pedestal.Position);
+      itemPos.Y -= 10;
 
-      for (let i = 1; i <= numDots; i++) {
-        const t = i / (numDots + 1);
-        const x = playerPos.X + dx * t;
-        const y = playerPos.Y + dy * t;
-        fonts.terminus.DrawStringScaled(
-          ".",
-          x - 2,
-          y - 2,
-          1,
-          1,
-          greenColor,
-          0,
-          false,
+      if (this.familiarPos === null) {
+        const playerPos = Isaac.WorldToScreen(player.Position);
+        playerPos.Y -= 10;
+        this.familiarPos = playerPos;
+        this.familiarOrbiting = false;
+        this.familiarOrbitAngle = 0;
+      }
+
+      this.updateFamiliar(itemPos);
+      this.renderFamiliar();
+    }
+  }
+
+  // ==================================================================
+  // DC familiar
+  // ==================================================================
+
+  private ensureYoListenSprite(): Sprite | undefined {
+    if (this.yoListenSprite !== undefined) {
+      return this.yoListenSprite;
+    }
+    const collectible = Isaac.GetItemConfig().GetCollectible(
+      CollectibleType.YO_LISTEN,
+    );
+    if (collectible === undefined) {
+      return undefined;
+    }
+    this.yoListenSprite = Sprite();
+    this.yoListenSprite.Load("gfx/005.100_collectible.anm2", false);
+    this.yoListenSprite.ReplaceSpritesheet(1, collectible.GfxFileName);
+    this.yoListenSprite.LoadGraphics();
+    this.yoListenSprite.Play("Idle", true);
+    return this.yoListenSprite;
+  }
+
+  private updateFamiliar(targetPos: Vector): void {
+    if (this.familiarPos === null) {
+      return;
+    }
+
+    const dx = targetPos.X - this.familiarPos.X;
+    const dy = targetPos.Y - this.familiarPos.Y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (this.familiarOrbiting) {
+      this.familiarOrbitAngle += ORBIT_SPEED;
+      if (this.orbitRadius < ORBIT_RADIUS) {
+        this.orbitRadius = Math.min(
+          this.orbitRadius + ORBIT_RADIUS_GROW,
+          ORBIT_RADIUS,
         );
       }
+      this.familiarPos.X =
+        targetPos.X + Math.cos(this.familiarOrbitAngle) * this.orbitRadius;
+      this.familiarPos.Y =
+        targetPos.Y + Math.sin(this.familiarOrbitAngle) * this.orbitRadius;
+    } else if (dist < ARRIVAL_DIST) {
+      this.familiarOrbitAngle = Math.atan2(-dy, -dx);
+      this.orbitRadius = dist;
+      this.familiarOrbiting = true;
+    } else {
+      const step = Math.min(FLY_SPEED * dist, dist);
+      this.familiarPos.X += (dx / dist) * step;
+      this.familiarPos.Y += (dy / dist) * step;
     }
+  }
+
+  private renderFamiliar(): void {
+    if (this.familiarPos === null) {
+      return;
+    }
+    const sprite = this.ensureYoListenSprite();
+    if (sprite === undefined) {
+      return;
+    }
+
+    if (this.haloSprite === undefined) {
+      this.haloSprite = Sprite();
+      this.haloSprite.Load("gfx/ui/halo.anm2", true);
+      this.haloSprite.Play("Idle", true);
+      this.haloSprite.LoadGraphics();
+    }
+
+    sprite.Update();
+    this.haloSprite.Update();
+    this.haloSprite.Scale = Vector(FAMILIAR_SCALE * 1.6, FAMILIAR_SCALE * 1.6);
+    this.haloSprite.Color = Color(1, 1, 1, 0.6);
+    this.haloSprite.Render(this.familiarPos, Vector(0, -10), Vector(0, 0));
+    sprite.Scale = Vector(FAMILIAR_SCALE, FAMILIAR_SCALE);
+    sprite.Color = Color(1, 1, 1, 1);
+    sprite.Render(this.familiarPos, Vector(0, 0), Vector(0, 0));
   }
 }

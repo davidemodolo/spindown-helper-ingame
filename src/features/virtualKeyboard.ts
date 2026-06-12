@@ -6,12 +6,6 @@ import {
 import type { ModUpgraded } from "isaacscript-common";
 import { Callback, fonts, ModFeature } from "isaacscript-common";
 
-// SetTimeStop is in the REPENTANCE Lua API but missing from the current TS bindings.
-declare global {
-  interface Game {
-    SetTimeStop(numFrames: number): void;
-  }
-}
 import {
   KEYBOARD_COOLDOWN_FRAMES,
   KEYBOARD_ROWS,
@@ -20,18 +14,19 @@ import {
 import state from "../state";
 import { searchItems } from "../utils/items";
 
-const WIN_W = 224;
+const WIN_W = 216;
 const WIN_H = 112;
 const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 5;
 
 // Layout Y-offsets (screen coords relative to wy)
-const INPUT_Y = 4;
+const INPUT_Y = 8;
 const RESULTS_TOP_Y = 16;
 const RESULTS_BOT_Y = 32;
-const KEYBOARD_Y = 48;
-const HELP_Y = 96;
+const KEYBOARD_Y = 56;
+const HELP_Y = 100;
+const CONTENT_RIGHT = Math.ceil(WIN_W / 56);
 const KEY_ROW_H = 8;
 const KEY_W = 8;
 const SPECIAL_W = 48;
@@ -160,11 +155,6 @@ export class VirtualKeyboardFeature extends ModFeature {
     } else {
       return;
     }
-
-    // Freeze all entity movement while the keyboard is open.
-    // SetTimeStop counts down by 1 per game update, so refreshing to 2 every
-    // render frame keeps it at ≥1 through the next update tick.
-    Game().SetTimeStop(2);
 
     this.handleCursorMovement();
     this.handleSelectionInput();
@@ -459,10 +449,10 @@ export class VirtualKeyboardFeature extends ModFeature {
       bottomN > 0
         ? Math.floor((WIN_W - 2 * 8) / bottomN)
         : Math.floor((WIN_W - 2 * 8) / 3);
-    this.renderResultsRow(wx, wy + RESULTS_BOT_Y, 0, 3, cellW);
-    this.renderResultsRow(wx, wy + RESULTS_TOP_Y, 3, 5, cellW);
-    this.renderKeyboardGrid(wx, wy + KEYBOARD_Y);
-    this.renderHelpBar(wx, wy + HELP_Y);
+    this.renderResultsRow(wx + CONTENT_RIGHT, wy + RESULTS_BOT_Y, 0, 3, cellW);
+    this.renderResultsRow(wx + CONTENT_RIGHT, wy + RESULTS_TOP_Y, 3, 5, cellW);
+    this.renderKeyboardGrid(wx + CONTENT_RIGHT, wy + KEYBOARD_Y);
+    this.renderHelpBar(wx + CONTENT_RIGHT, wy + HELP_Y);
   }
 
   private renderInput(wx: number, y: number): void {
@@ -512,7 +502,7 @@ export class VirtualKeyboardFeature extends ModFeature {
     const useCW = cellW ?? Math.floor((WIN_W - 2 * SIDE_PAD) / n);
     const blockW = n * useCW;
     const ox = SIDE_PAD + Math.floor((WIN_W - 2 * SIDE_PAD - blockW) / 2);
-    const nameY = y + 2;
+    const nameY = y + 2 + Math.ceil(WIN_H / 21);
     const FONT_SCALE = 0.48;
 
     for (let i = 0; i < n; i++) {
@@ -531,14 +521,14 @@ export class VirtualKeyboardFeature extends ModFeature {
           sprite.SetFrame("Idle", 8);
           sprite.Scale = Vector(SPRITE_SCALE, SPRITE_SCALE);
           sprite.Render(
-            Vector(cellX + SPRITE_PX / 2, nameY + SPRITE_PX),
+            Vector(cellX + SPRITE_PX / 2, nameY + SPRITE_PX + 2),
             Vector(0, 0),
             Vector(0, 0),
           );
         }
       }
 
-      const name = shortenName(item.name, 12);
+      const name = shortenName(item.name, 17);
       fonts.droid.DrawStringScaled(
         name,
         cellX + SPRITE_PX + 1,
