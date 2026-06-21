@@ -1,6 +1,6 @@
-import { CollectibleType, ItemPoolType } from "isaac-typescript-definitions";
-import { getDefaultItemPoolsForCollectibleType } from "isaacscript-common";
+import { CollectibleType } from "isaac-typescript-definitions";
 import { HIDDEN_SPINDOWN_IDS } from "../constants";
+import { getLockedItems } from "./lockedItems";
 
 export interface SpinResult {
   /** Display text (e.g. "5", "NO", "DN", "CB") */
@@ -11,36 +11,25 @@ export interface SpinResult {
   reachable: boolean;
 }
 
-let cachedLockedItems: ReadonlySet<CollectibleType> | undefined;
+function countSkippedBetween(fromID: number, toID: number): number {
+  let skipped = 0;
+  const lockedItems = getLockedItems();
 
-export function getLockedItems(): ReadonlySet<CollectibleType> {
-  if (cachedLockedItems !== undefined) {
-    return cachedLockedItems;
-  }
-  return new Set<CollectibleType>();
-}
-
-export function buildLockedItems(
-  isUnlocked: (type: CollectibleType, poolType: ItemPoolType) => boolean,
-): void {
-  const locked = new Set<CollectibleType>();
-  const numCollectibles = Isaac.GetItemConfig().GetCollectibles().Size;
-
-  for (let id = 1; id <= numCollectibles; id++) {
-    const type = id as CollectibleType;
-    if (HIDDEN_SPINDOWN_IDS.has(type)) {
-      continue;
-    }
-    const pools = getDefaultItemPoolsForCollectibleType(type);
-    if (pools.length === 0) {
-      continue;
-    }
-    if (!isUnlocked(type, pools[0]!)) {
-      locked.add(type);
+  for (const hiddenType of HIDDEN_SPINDOWN_IDS) {
+    const hiddenID = hiddenType as number;
+    if (hiddenID < fromID && hiddenID > toID) {
+      skipped++;
     }
   }
 
-  cachedLockedItems = locked;
+  for (const lockedType of lockedItems) {
+    const lockedID = lockedType as number;
+    if (lockedID < fromID && lockedID > toID) {
+      skipped++;
+    }
+  }
+
+  return skipped;
 }
 
 export function computeSpins(
@@ -70,41 +59,18 @@ export function computeSpins(
 
   const dadsNoteID = CollectibleType.DADS_NOTE as number;
 
-  let steps = fromID - toID;
-
-  for (const hiddenType of HIDDEN_SPINDOWN_IDS) {
-    const hiddenID = hiddenType as number;
-    if (hiddenID < fromID && hiddenID > toID) {
-      steps--;
-    }
-  }
-
-  for (const lockedType of lockedItems) {
-    const lockedID = lockedType as number;
-    if (lockedID < fromID && lockedID > toID) {
-      steps--;
-    }
-  }
+  let steps = fromID - toID - countSkippedBetween(fromID, toID);
 
   if (toID < dadsNoteID && fromID > dadsNoteID) {
-    let stepsToNote = fromID - dadsNoteID;
-    for (const hiddenType of HIDDEN_SPINDOWN_IDS) {
-      const hiddenID = hiddenType as number;
-      if (hiddenID < fromID && hiddenID > dadsNoteID) {
-        stepsToNote--;
-      }
-    }
-    for (const lockedType of lockedItems) {
-      const lockedID = lockedType as number;
-      if (lockedID < fromID && lockedID > dadsNoteID) {
-        stepsToNote--;
-      }
-    }
+    const stepsToNote =
+      fromID - dadsNoteID - countSkippedBetween(fromID, dadsNoteID);
     if (!carBattery || stepsToNote % 2 === 0) {
       return { label: "DN", spins: -1, reachable: false };
     }
   }
 
+  // When many items between `fromID` and `toID` are skipped (hidden/locked), the
+  // effective step count can drop to zero or below, making the target unreachable.
   if (steps <= 0) {
     return { label: "NO", spins: -1, reachable: false };
   }

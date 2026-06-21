@@ -1,22 +1,34 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
-import type { ItemEntry } from "./utils/items";
 
-const state = {
-  selectedItemType: undefined as CollectibleType | undefined,
-  selectedItemName: "" as string,
+export interface StateSlice<T> {
+  readonly get: () => T;
+  readonly set: (next: T) => void;
+  subscribe(fn: () => void): () => void;
+}
 
-  searchText: "" as string,
-  isKeyboardOpen: false as boolean,
-  overlayPinned: false as boolean,
+function createSlice<T>(initial: T): StateSlice<T> {
+  let value = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (next: T) => {
+      value = next;
+      for (const fn of listeners) {
+        fn();
+      }
+    },
+    subscribe: (fn: () => void) => {
+      listeners.add(fn);
+      return () => {
+        listeners.delete(fn);
+      };
+    },
+  };
+}
 
-  keyboardCursorRow: 0 as number,
-  keyboardCursorCol: 0 as number,
-  cursorInResults: false as boolean,
-
-  matchedItems: [] as ItemEntry[],
-  selectedResultIndex: 0 as number,
-
-  moveCooldown: 0 as number,
-};
-
-export default state;
+export const selectedItemType = createSlice<CollectibleType | undefined>(
+  undefined,
+);
+export const selectedItemName = createSlice("");
+export const isKeyboardOpen = createSlice(false);
+export const overlayPinned = createSlice(false);

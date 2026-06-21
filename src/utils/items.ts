@@ -1,6 +1,6 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
 import { FAVORITE_ITEM_TYPES, HIDDEN_SPINDOWN_IDS } from "../constants";
-import { getLockedItems } from "./calculator";
+import { getLockedItems } from "./lockedItems";
 
 export interface ItemEntry {
   name: string;
@@ -19,6 +19,12 @@ interface TrieNode {
 
 let cachedTrie: TrieNode | undefined;
 let cachedFavorites: ItemEntry[] | undefined;
+
+export function invalidateRegistryCaches(): void {
+  cachedRegistry = undefined;
+  cachedTrie = undefined;
+  cachedFavorites = undefined;
+}
 
 const MIN_SUFFIX_LEN = 2;
 
@@ -125,6 +131,9 @@ function buildTrie(registry: readonly ItemEntry[]): TrieNode {
       insertIntoTrie(root, wk, entry, 1);
     }
 
+    // Insert every suffix (min 2 chars) as priority-2 substring matches.
+    // O(n × m²) where n = item count (~700) and m = avg key length (~15).
+    // Runs once at startup; acceptable for this domain.
     const key = entry.searchKey;
     for (let start = 1; start <= key.length - MIN_SUFFIX_LEN; start++) {
       insertIntoTrie(root, key.slice(start), entry, 2);

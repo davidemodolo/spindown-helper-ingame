@@ -1,3 +1,5 @@
+export type RGBA = readonly [number, number, number, number];
+
 const spinColorCache: KColor[] = [];
 
 function initSpinColors(): void {
@@ -27,4 +29,3 @@ export function getSpinColor(spins: number): KColor {
   }
   return spinColorCache[4]!;
 }
-

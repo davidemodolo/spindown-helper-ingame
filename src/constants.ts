@@ -1,13 +1,13 @@
-import type { CollectibleType } from "isaac-typescript-definitions";
+import { CollectibleType } from "isaac-typescript-definitions";
 
 export const MOD_NAME = "spindown-helper-ingame";
 
 export const FAVORITE_ITEM_TYPES: readonly CollectibleType[] = [
-  628 as CollectibleType, // Death Certificate
-  347 as CollectibleType, // Diplopia
-  689 as CollectibleType, // Glitched Crown
-  205 as CollectibleType, // Sharp Plug
-  489 as CollectibleType, // D Infinity
+  CollectibleType.DEATH_CERTIFICATE,
+  CollectibleType.DIPLOPIA,
+  CollectibleType.GLITCHED_CROWN,
+  CollectibleType.SHARP_PLUG,
+  CollectibleType.D_INFINITY,
 ];
 
 export const HIDDEN_SPINDOWN_IDS: ReadonlySet<CollectibleType> = new Set([
@@ -18,6 +18,7 @@ export const HIDDEN_SPINDOWN_IDS: ReadonlySet<CollectibleType> = new Set([
 ]);
 
 export const KEYBOARD_ROWS: readonly (readonly string[])[] = [
+  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
   ["Z", "X", "C", "V", "B", "N", "M"],

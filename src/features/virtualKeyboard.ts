@@ -11,8 +11,16 @@ import {
   KEYBOARD_ROWS,
   KEYBOARD_SPECIALS,
 } from "../constants";
-import state from "../state";
+import {
+  isKeyboardOpen,
+  overlayPinned,
+  selectedItemName,
+  selectedItemType,
+} from "../state";
+import type { RGBA } from "../utils/color";
+import type { ItemEntry } from "../utils/items";
 import { searchItems } from "../utils/items";
+import { getCollectibleSprite, loadStaticSprite } from "../utils/sprite";
 
 const WIN_W = 216;
 const WIN_H = 112;
@@ -20,7 +28,6 @@ const WIN_X_FN = () => Math.floor((Isaac.GetScreenWidth() - WIN_W) / 2);
 const WIN_Y_FN = () => Math.floor((Isaac.GetScreenHeight() - WIN_H) / 2);
 const MAX_RESULTS = 5;
 
-// Layout Y-offsets (screen coords relative to wy)
 const INPUT_Y = 8;
 const RESULTS_TOP_Y = 16;
 const RESULTS_BOT_Y = 32;
@@ -36,49 +43,25 @@ const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
 
 const CH_W = 4;
 
-const spriteCache = new Map<string, Sprite>();
-let windowBg: Sprite | undefined;
-
-function getItemSprite(gfxFileName: string): Sprite | undefined {
-  if (gfxFileName.length === 0) {
-    return undefined;
-  }
-  let sprite = spriteCache.get(gfxFileName);
-  if (sprite !== undefined) {
-    return sprite;
-  }
-  sprite = Sprite();
-  sprite.Load("gfx/005.100_collectible.anm2", true);
-  sprite.ReplaceSpritesheet(1, gfxFileName);
-  sprite.LoadGraphics();
-  spriteCache.set(gfxFileName, sprite);
-  return sprite;
-}
-
-function getWindowBg(): Sprite | undefined {
-  if (windowBg !== undefined) {
-    return windowBg;
-  }
-  windowBg = Sprite();
-  windowBg.Load("gfx/ui/window_bg.anm2", true);
-  windowBg.SetFrame("bg", 0);
-  windowBg.LoadGraphics();
-  return windowBg;
-}
+const THEME = {
+  inputPrompt: [0.75, 0.18, 0.14, 1],
+  inputText: [0.88, 0.78, 0.63, 1],
+  noMatch: [0.38, 0.26, 0.18, 0.7],
+  resultNameSelected: [0.85, 0.22, 0.12, 1],
+  resultNameNormal: [0.52, 0.34, 0.24, 0.8],
+  resultSpriteSelected: [1, 1, 1, 1],
+  resultSpriteNormal: [0.45, 0.35, 0.28, 0.65],
+  keySelected: [0.8, 0.18, 0.14, 1],
+  keyNormal: [0.22, 0.14, 0.07, 0.9],
+  specialOverlayActive: [0.92, 0.76, 0.3, 1],
+  helpText: [0.4, 0.28, 0.2, 0.55],
+} as const satisfies Record<string, RGBA>;
 
 function getKbFont(): Font {
   return fonts.terminus;
 }
 
-function rtext(
-  s: string,
-  x: number,
-  y: number,
-  r: number,
-  g: number,
-  b: number,
-  a: number,
-): void {
+function rtext(s: string, x: number, y: number, [r, g, b, a]: RGBA): void {
   getKbFont().DrawStringScaled(
     s,
     x,
@@ -99,6 +82,13 @@ function shortenName(name: string, maxChars: number): string {
 }
 
 export class VirtualKeyboardFeature extends ModFeature {
+  private searchText = "";
+  private matchedItems: ItemEntry[] = [];
+  private selectedResultIndex = 0;
+  private keyboardCursorRow = 0;
+  private keyboardCursorCol = Math.floor((KEYBOARD_ROWS[0]?.length ?? 10) / 2);
+  private cursorInResults = false;
+  private moveCooldown = 0;
   private wasConfirmPressed = false;
   private wasBackPressed = false;
   private selectCooldown = 0;
@@ -110,35 +100,30 @@ export class VirtualKeyboardFeature extends ModFeature {
     super(mod, true);
   }
 
+  private get shouldBlockInput(): boolean {
+    return isKeyboardOpen.get() || this.closeCooldown > 0;
+  }
+
   @Callback(ModCallback.INPUT_ACTION, InputHook.IS_ACTION_PRESSED)
   onActionPressed(): boolean | undefined {
-    if (state.isKeyboardOpen || this.closeCooldown > 0) {
-      return false;
-    }
-    return undefined;
+    return this.shouldBlockInput ? false : undefined;
   }
 
   @Callback(ModCallback.INPUT_ACTION, InputHook.IS_ACTION_TRIGGERED)
   onActionTriggered(): boolean | undefined {
-    if (state.isKeyboardOpen || this.closeCooldown > 0) {
-      return false;
-    }
-    return undefined;
+    return this.shouldBlockInput ? false : undefined;
   }
 
   @Callback(ModCallback.INPUT_ACTION, InputHook.GET_ACTION_VALUE)
   onGetActionValue(): number | undefined {
-    if (state.isKeyboardOpen || this.closeCooldown > 0) {
-      return 0;
-    }
-    return undefined;
+    return this.shouldBlockInput ? 0 : undefined;
   }
 
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
     this.handleToggleInput();
 
-    if (!state.isKeyboardOpen) {
+    if (!isKeyboardOpen.get()) {
       if (this.closeCooldown > 0) {
         this.closeCooldown--;
         const player = Isaac.GetPlayer(0);
@@ -182,18 +167,16 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private toggleKeyboard(): void {
-    if (state.isKeyboardOpen) {
+    if (isKeyboardOpen.get()) {
       this.closeKeyboard();
     } else {
-      state.isKeyboardOpen = true;
-      state.keyboardCursorRow = 0;
-      state.keyboardCursorCol = Math.floor(
-        (KEYBOARD_ROWS[0]?.length ?? 10) / 2,
-      );
-      state.cursorInResults = false;
-      state.searchText = "";
-      state.matchedItems = searchItems("");
-      state.selectedResultIndex = 0;
+      isKeyboardOpen.set(true);
+      this.keyboardCursorRow = 0;
+      this.keyboardCursorCol = Math.floor((KEYBOARD_ROWS[0]?.length ?? 10) / 2);
+      this.cursorInResults = false;
+      this.searchText = "";
+      this.matchedItems = searchItems("");
+      this.selectedResultIndex = 0;
       this.wasConfirmPressed = false;
       this.wasBackPressed = false;
       this.selectCooldown = 0;
@@ -201,8 +184,8 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private handleCursorMovement(): void {
-    if (state.moveCooldown > 0) {
-      state.moveCooldown--;
+    if (this.moveCooldown > 0) {
+      this.moveCooldown--;
       return;
     }
     const player = Isaac.GetPlayer(0);
@@ -225,7 +208,7 @@ export class VirtualKeyboardFeature extends ModFeature {
     if (!up && !down && !left && !right) {
       return;
     }
-    if (state.cursorInResults) {
+    if (this.cursorInResults) {
       this.handleResultCursorMovement(up, down, left, right);
     } else {
       this.handleKeyboardCursorMovement(up, down, left, right);
@@ -239,30 +222,30 @@ export class VirtualKeyboardFeature extends ModFeature {
     right: boolean,
   ): void {
     if (up) {
-      state.keyboardCursorRow--;
+      this.keyboardCursorRow--;
     } else if (down) {
-      state.keyboardCursorRow++;
+      this.keyboardCursorRow++;
     } else if (left) {
-      state.keyboardCursorCol--;
+      this.keyboardCursorCol--;
     } else if (right) {
-      state.keyboardCursorCol++;
+      this.keyboardCursorCol++;
     } else {
       return;
     }
     const sr = KEYBOARD_ROWS.length;
-    if (state.keyboardCursorRow < 0) {
-      if (state.matchedItems.length > 0) {
-        state.cursorInResults = true;
-        state.selectedResultIndex = 0;
+    if (this.keyboardCursorRow < 0) {
+      if (this.matchedItems.length > 0) {
+        this.cursorInResults = true;
+        this.selectedResultIndex = 0;
       } else {
-        state.keyboardCursorRow = 0;
+        this.keyboardCursorRow = 0;
       }
-    } else if (state.keyboardCursorRow > sr) {
-      state.keyboardCursorRow = sr;
+    } else if (this.keyboardCursorRow > sr) {
+      this.keyboardCursorRow = sr;
     } else {
       this.clampKeyboardCursor();
     }
-    state.moveCooldown = KEYBOARD_COOLDOWN_FRAMES;
+    this.moveCooldown = KEYBOARD_COOLDOWN_FRAMES;
   }
 
   private handleResultCursorMovement(
@@ -271,64 +254,64 @@ export class VirtualKeyboardFeature extends ModFeature {
     left: boolean,
     right: boolean,
   ): void {
-    const n = Math.min(state.matchedItems.length, MAX_RESULTS);
+    const n = Math.min(this.matchedItems.length, MAX_RESULTS);
     if (up) {
-      if (state.selectedResultIndex < 3) {
-        // Bottom row → top row (visually upward), column-preserving
-        state.selectedResultIndex = Math.min(state.selectedResultIndex + 3, n - 1);
+      if (this.selectedResultIndex < 3) {
+        this.selectedResultIndex = Math.min(
+          this.selectedResultIndex + 3,
+          n - 1,
+        );
       }
-      // Already at top row: no-op (nothing above)
     } else if (down) {
-      if (state.selectedResultIndex >= 3) {
-        // Top row → bottom row (visually downward), column-preserving
-        state.selectedResultIndex -= 3;
+      if (this.selectedResultIndex >= 3) {
+        this.selectedResultIndex -= 3;
       } else {
-        // Bottom row → back to keyboard (visually downward)
-        state.cursorInResults = false;
-        state.keyboardCursorRow = 0;
-        state.keyboardCursorCol = Math.floor(
+        this.cursorInResults = false;
+        this.keyboardCursorRow = 0;
+        this.keyboardCursorCol = Math.floor(
           (KEYBOARD_ROWS[0]?.length ?? 10) / 2,
         );
       }
     } else if (left) {
-      state.selectedResultIndex--;
+      this.selectedResultIndex--;
     } else if (right) {
-      state.selectedResultIndex++;
+      this.selectedResultIndex++;
     } else {
       return;
     }
-    if (state.selectedResultIndex < 0) {
-      state.selectedResultIndex = n - 1;
-    } else if (state.selectedResultIndex >= n) {
-      state.selectedResultIndex = 0;
+    if (this.selectedResultIndex < 0) {
+      this.selectedResultIndex = n - 1;
+    } else if (this.selectedResultIndex >= n) {
+      this.selectedResultIndex = 0;
     }
-    state.moveCooldown = KEYBOARD_COOLDOWN_FRAMES;
+    this.moveCooldown = KEYBOARD_COOLDOWN_FRAMES;
   }
 
   private clampKeyboardCursor(): void {
-    if (state.keyboardCursorRow < 0) {
-      state.keyboardCursorRow = 0;
+    if (this.keyboardCursorRow < 0) {
+      this.keyboardCursorRow = 0;
     }
     const sr = KEYBOARD_ROWS.length;
-    if (state.keyboardCursorRow >= sr) {
-      state.keyboardCursorRow = sr;
+    if (this.keyboardCursorRow > sr) {
+      this.keyboardCursorRow = sr;
     }
-    if (state.keyboardCursorRow < sr) {
-      const row = KEYBOARD_ROWS[state.keyboardCursorRow];
+
+    if (this.keyboardCursorRow < sr) {
+      const row = KEYBOARD_ROWS[this.keyboardCursorRow];
       if (row !== undefined) {
         const len = row.length;
-        if (state.keyboardCursorCol < 0) {
-          state.keyboardCursorCol = len - 1;
-        } else if (state.keyboardCursorCol >= len) {
-          state.keyboardCursorCol = 0;
+        if (this.keyboardCursorCol < 0) {
+          this.keyboardCursorCol = len - 1;
+        } else if (this.keyboardCursorCol >= len) {
+          this.keyboardCursorCol = 0;
         }
       }
     } else {
       const len = KEYBOARD_SPECIALS.length;
-      if (state.keyboardCursorCol < 0) {
-        state.keyboardCursorCol = len - 1;
-      } else if (state.keyboardCursorCol >= len) {
-        state.keyboardCursorCol = 0;
+      if (this.keyboardCursorCol < 0) {
+        this.keyboardCursorCol = len - 1;
+      } else if (this.keyboardCursorCol >= len) {
+        this.keyboardCursorCol = 0;
       }
     }
   }
@@ -350,7 +333,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       Input.IsActionPressed(ButtonAction.MENU_BACK, ci)
       || Input.IsActionPressed(ButtonAction.BOMB, ci);
 
-    if (state.cursorInResults) {
+    if (this.cursorInResults) {
       if (confirm && !this.wasConfirmPressed) {
         this.selectHighlightedResult();
         this.selectCooldown = 15;
@@ -374,54 +357,54 @@ export class VirtualKeyboardFeature extends ModFeature {
   }
 
   private typeKeyboardKey(): void {
-    if (state.keyboardCursorRow < KEYBOARD_ROWS.length) {
-      const row = KEYBOARD_ROWS[state.keyboardCursorRow];
-      if (row !== undefined && row[state.keyboardCursorCol] !== undefined) {
-        state.searchText += row[state.keyboardCursorCol];
+    if (this.keyboardCursorRow < KEYBOARD_ROWS.length) {
+      const row = KEYBOARD_ROWS[this.keyboardCursorRow];
+      if (row !== undefined && row[this.keyboardCursorCol] !== undefined) {
+        this.searchText += row[this.keyboardCursorCol];
         this.onSearchChanged();
       }
     } else {
-      const s = KEYBOARD_SPECIALS[state.keyboardCursorCol];
+      const s = KEYBOARD_SPECIALS[this.keyboardCursorCol];
       if (s === "SPACE") {
-        state.searchText += " ";
+        this.searchText += " ";
         this.onSearchChanged();
       } else if (s === "CLEAR") {
-        state.selectedItemType = undefined;
-        state.selectedItemName = "";
-        state.overlayPinned = false;
+        selectedItemType.set(undefined);
+        selectedItemName.set("");
+        overlayPinned.set(false);
         this.closeKeyboard();
       } else if (s === "OVERLAY") {
-        state.overlayPinned = !state.overlayPinned;
+        overlayPinned.set(!overlayPinned.get());
         this.closeKeyboard();
       }
     }
   }
 
   private backspace(): void {
-    if (state.searchText.length > 0) {
-      state.searchText = state.searchText.slice(0, -1);
+    if (this.searchText.length > 0) {
+      this.searchText = this.searchText.slice(0, -1);
       this.onSearchChanged();
     }
   }
 
   private onSearchChanged(): void {
-    state.matchedItems = searchItems(state.searchText);
-    state.selectedResultIndex = 0;
+    this.matchedItems = searchItems(this.searchText);
+    this.selectedResultIndex = 0;
   }
 
   private selectHighlightedResult(): void {
-    const item = state.matchedItems[state.selectedResultIndex];
+    const item = this.matchedItems[this.selectedResultIndex];
     if (item !== undefined) {
-      state.selectedItemType = item.type;
-      state.selectedItemName = item.name;
-      state.overlayPinned = true;
+      selectedItemType.set(item.type);
+      selectedItemName.set(item.name);
+      overlayPinned.set(true);
     }
     this.closeKeyboard();
   }
 
   private closeKeyboard(): void {
-    state.isKeyboardOpen = false;
-    state.cursorInResults = false;
+    isKeyboardOpen.set(false);
+    this.cursorInResults = false;
     this.closeCooldown = 8;
     const player = Isaac.GetPlayer(0);
     if (player !== undefined) {
@@ -437,18 +420,15 @@ export class VirtualKeyboardFeature extends ModFeature {
     const wx = WIN_X_FN();
     const wy = WIN_Y_FN();
 
-    const bg = getWindowBg();
+    const bg = loadStaticSprite("gfx/ui/window_bg.anm2", "bg");
     if (bg !== undefined) {
       bg.SetFrame("bg", 0);
       bg.Render(Vector(wx, wy), Vector(0, 0), Vector(0, 0));
     }
 
     this.renderInput(wx, wy + INPUT_Y);
-    const bottomN = Math.min(state.matchedItems.length, 3);
-    const cellW =
-      bottomN > 0
-        ? Math.floor((WIN_W - 2 * 8) / bottomN)
-        : Math.floor((WIN_W - 2 * 8) / 3);
+    const bottomN = Math.min(this.matchedItems.length, 3);
+    const cellW = Math.floor((WIN_W - 16) / (bottomN || 3));
     this.renderResultsRow(wx + CONTENT_RIGHT, wy + RESULTS_BOT_Y, 0, 3, cellW);
     this.renderResultsRow(wx + CONTENT_RIGHT, wy + RESULTS_TOP_Y, 3, 5, cellW);
     this.renderKeyboardGrid(wx + CONTENT_RIGHT, wy + KEYBOARD_Y);
@@ -457,7 +437,7 @@ export class VirtualKeyboardFeature extends ModFeature {
 
   private renderInput(wx: number, y: number): void {
     const maxVisible = Math.floor((WIN_W - 40) / CH_W);
-    const t = state.searchText;
+    const t = this.searchText;
     const display =
       t.length === 0
         ? "_"
@@ -468,8 +448,8 @@ export class VirtualKeyboardFeature extends ModFeature {
     const inputBlockW = (display.length + 2) * CH_W;
     const inputX = wx + Math.floor((WIN_W - inputBlockW) / 2);
 
-    rtext(">", inputX, y, 0.75, 0.18, 0.14, 1);
-    rtext(display, inputX + CH_W * 2, y, 0.88, 0.78, 0.63, 1);
+    rtext(">", inputX, y, THEME.inputPrompt);
+    rtext(display, inputX + CH_W * 2, y, THEME.inputText);
   }
 
   private renderResultsRow(
@@ -479,19 +459,16 @@ export class VirtualKeyboardFeature extends ModFeature {
     end: number,
     cellW?: number,
   ): void {
-    const items = state.matchedItems;
+    const items = this.matchedItems;
     const max = Math.min(items.length, end);
     if (start >= max) {
-      if (start === 0 && state.searchText.length > 0) {
+      if (start === 0 && this.searchText.length > 0) {
         const msg = "no match";
         rtext(
           msg,
           wx + WIN_W / 2 - msg.length * (CH_W / 2),
           y + 3,
-          0.38,
-          0.26,
-          0.18,
-          0.7,
+          THEME.noMatch,
         );
       }
       return;
@@ -509,15 +486,15 @@ export class VirtualKeyboardFeature extends ModFeature {
       const item = items[start + i]!;
       const cellX = wx + ox + i * useCW;
       const sel =
-        state.cursorInResults && start + i === state.selectedResultIndex;
+        this.cursorInResults && start + i === this.selectedResultIndex;
 
       const gfx = item.gfxFileName;
       if (gfx.length > 0) {
-        const sprite = getItemSprite(gfx);
+        const sprite = getCollectibleSprite(gfx);
         if (sprite !== undefined) {
           sprite.Color = sel
-            ? Color(1, 1, 1, 1)
-            : Color(0.45, 0.35, 0.28, 0.65);
+            ? Color(...THEME.resultSpriteSelected)
+            : Color(...THEME.resultSpriteNormal);
           sprite.SetFrame("Idle", 8);
           sprite.Scale = Vector(SPRITE_SCALE, SPRITE_SCALE);
           sprite.Render(
@@ -528,6 +505,9 @@ export class VirtualKeyboardFeature extends ModFeature {
         }
       }
 
+      const [rr, rg, rb, ra] = sel
+        ? THEME.resultNameSelected
+        : THEME.resultNameNormal;
       const name = shortenName(item.name, 17);
       fonts.droid.DrawStringScaled(
         name,
@@ -535,12 +515,7 @@ export class VirtualKeyboardFeature extends ModFeature {
         nameY,
         FONT_SCALE,
         FONT_SCALE,
-        KColor(
-          sel ? 0.85 : 0.52,
-          sel ? 0.22 : 0.34,
-          sel ? 0.12 : 0.24,
-          sel ? 1 : 0.8,
-        ),
+        KColor(rr, rg, rb, ra),
         0,
         false,
       );
@@ -556,13 +531,13 @@ export class VirtualKeyboardFeature extends ModFeature {
       for (let col = 0; col < keys.length; col++) {
         const x = wx + ox + col * KEY_W;
         const sel =
-          !state.cursorInResults
-          && state.keyboardCursorRow === row
-          && state.keyboardCursorCol === col;
+          !this.cursorInResults
+          && this.keyboardCursorRow === row
+          && this.keyboardCursorCol === col;
         if (sel) {
-          rtext(keys[col]!, x, ry, 0.8, 0.18, 0.14, 1);
+          rtext(keys[col]!, x, ry, THEME.keySelected);
         } else {
-          rtext(keys[col]!, x, ry, 0.22, 0.14, 0.07, 0.9);
+          rtext(keys[col]!, x, ry, THEME.keyNormal);
         }
       }
     }
@@ -574,23 +549,23 @@ export class VirtualKeyboardFeature extends ModFeature {
     for (let col = 0; col < KEYBOARD_SPECIALS.length; col++) {
       const x = wx + sox + col * SPECIAL_W;
       const sel =
-        !state.cursorInResults
-        && state.keyboardCursorRow === sr
-        && state.keyboardCursorCol === col;
+        !this.cursorInResults
+        && this.keyboardCursorRow === sr
+        && this.keyboardCursorCol === col;
       const label = KEYBOARD_SPECIALS[col];
-      const overlayActive = label === "OVERLAY" && state.overlayPinned;
+      const overlayActive = label === "OVERLAY" && overlayPinned.get();
       if (sel) {
-        rtext(`[${label}]`, x, sy, 0.8, 0.18, 0.14, 1);
+        rtext(`[${label}]`, x, sy, THEME.keySelected);
       } else if (overlayActive) {
-        rtext(`[${label}]`, x, sy, 0.92, 0.76, 0.3, 1);
+        rtext(`[${label}]`, x, sy, THEME.specialOverlayActive);
       } else {
-        rtext(`[${label}]`, x, sy, 0.22, 0.14, 0.07, 0.9);
+        rtext(`[${label}]`, x, sy, THEME.keyNormal);
       }
     }
   }
 
   private renderHelpBar(wx: number, y: number): void {
-    const msg = state.cursorInResults
+    const msg = this.cursorInResults
       ? "^ v rows  < > nav  A:pick  B:close"
       : "^:results  A:type  B:del";
     const msgW = msg.length * 4;
@@ -601,7 +576,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       y,
       0.5,
       0.5,
-      KColor(0.4, 0.28, 0.2, 0.55),
+      KColor(...THEME.helpText),
       0,
       false,
     );
