@@ -24,7 +24,11 @@ import { computeSpins } from "../utils/calculator";
 import { getSpinColor } from "../utils/color";
 import { invalidateRegistryCaches } from "../utils/items";
 import { buildLockedItems, getLockedItems } from "../utils/lockedItems";
-import { getCollectibleSprite, loadStaticSprite } from "../utils/sprite";
+import {
+  getCollectibleSprite,
+  loadAnimatedSprite,
+  loadStaticSprite,
+} from "../utils/sprite";
 import { DeathCertificateFamiliar } from "./deathCertificateFamiliar";
 
 interface ModWithUnlockCheck extends ModUpgraded {
@@ -76,6 +80,7 @@ let roomPedestalCache: PedestalCache = { room: -1, pedestals: [] };
 export class PedestalOverlayFeature extends ModFeature {
   private readonly modRef: ModUpgraded;
   private lastPlayedRoom = -1;
+  private lastFoundSpinKey = "";
   private lineDelayFrames = 0;
   private cachedDCRoom = -1;
   private cachedDCItemType: CollectibleType | undefined;
@@ -129,11 +134,20 @@ export class PedestalOverlayFeature extends ModFeature {
       return;
     }
 
+    if (this.lineDelayFrames > 0) {
+      this.lineDelayFrames--;
+    }
+
     if (inDC) {
       this.renderDeathCertificate(player);
     } else {
-      this.renderBottomHUD(selectedItemName.get());
-      this.renderPedestalSpins(player);
+      const found = this.renderPedestalSpins(player);
+      this.renderBottomHUD(
+        found ? `${selectedItemName.get()} here!` : selectedItemName.get(),
+        found ? 0.39 : 1,
+        found ? 0.94 : 1,
+        1,
+      );
     }
   }
 
@@ -187,19 +201,50 @@ export class PedestalOverlayFeature extends ModFeature {
     return loadStaticSprite("gfx/ui/nospin_dn.anm2", "idle");
   }
 
-  private renderPedestalSpins(player: EntityPlayer): void {
-    if (selectedItemType.get() === undefined) {
-      return;
+  private renderPedestalSpins(player: EntityPlayer): boolean {
+    const targetType = selectedItemType.get();
+    if (targetType === undefined) {
+      return false;
     }
 
     const carBattery = player.HasCollectible(CAR_BATTERY_ID);
+    const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
+    const foundKey = `${roomIndex}:${targetType}`;
+    let foundMatch = false;
 
     for (const pickup of getCollectiblePedestals()) {
-      const result = computeSpins(
-        pickup.SubType,
-        selectedItemType.get()!,
-        carBattery,
-      );
+      if (pickup.SubType === targetType) {
+        foundMatch = true;
+        const screenPos = Isaac.WorldToScreen(pickup.Position);
+
+        if (this.lastFoundSpinKey !== foundKey) {
+          musicManager.Play(Music.JINGLE_SECRET_ROOM_FIND, 0.4);
+          musicManager.UpdateVolume();
+          this.lastFoundSpinKey = foundKey;
+          this.lineDelayFrames = 15;
+        }
+
+        if (this.lineDelayFrames > 0) {
+          continue;
+        }
+
+        const halo = loadAnimatedSprite("gfx/ui/halo.anm2", "Idle");
+        halo.Update();
+        halo.Scale = Vector(0.7, 0.7);
+        halo.Color = Color(1, 1, 1, 1);
+        halo.Render(
+          Vector(screenPos.X, screenPos.Y + INDICATOR_Y_OFFSET + 5),
+          Vector(0, 0),
+          Vector(0, 0),
+        );
+        continue;
+      }
+
+      if (this.lineDelayFrames > 0) {
+        continue;
+      }
+
+      const result = computeSpins(pickup.SubType, targetType, carBattery);
 
       const screenPos = Isaac.WorldToScreen(pickup.Position);
 
@@ -227,6 +272,11 @@ export class PedestalOverlayFeature extends ModFeature {
         false,
       );
     }
+
+    if (!foundMatch) {
+      this.lastFoundSpinKey = "";
+    }
+    return foundMatch;
   }
 
   private renderDeathCertificate(player: EntityPlayer): void {
@@ -265,9 +315,6 @@ export class PedestalOverlayFeature extends ModFeature {
         this.lastPlayedRoom = roomIndex;
         this.lineDelayFrames = 15;
         this.dcFamiliar.reset();
-      }
-      if (this.lineDelayFrames > 0) {
-        this.lineDelayFrames--;
       }
       this.renderItemFound(player, foundEntity);
     } else {
