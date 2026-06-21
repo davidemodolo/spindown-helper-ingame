@@ -24,8 +24,12 @@ import { computeSpins } from "../utils/calculator";
 import { getSpinColor } from "../utils/color";
 import { invalidateRegistryCaches } from "../utils/items";
 import { buildLockedItems, getLockedItems } from "../utils/lockedItems";
-import { getCollectibleSprite } from "../utils/sprite";
+import { getCollectibleSprite, loadStaticSprite } from "../utils/sprite";
 import { DeathCertificateFamiliar } from "./deathCertificateFamiliar";
+
+interface ModWithUnlockCheck extends ModUpgraded {
+  isCollectibleUnlocked(collectibleType: number, itemPoolType: number): boolean;
+}
 
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY;
 const SPINDOWN_DICE_ID = CollectibleType.SPINDOWN_DICE;
@@ -39,6 +43,11 @@ const BOTTOM_HUD_Y = 26;
 const ITEM_SPRITE_SCALE = 0.5;
 
 function getCollectiblePedestals(): EntityPickup[] {
+  const currentRoom = Game().GetLevel().GetCurrentRoomIndex();
+  if (roomPedestalCache.room === currentRoom) {
+    return roomPedestalCache.pedestals;
+  }
+
   const result: EntityPickup[] = [];
   for (const entity of Isaac.GetRoomEntities()) {
     if (
@@ -52,16 +61,22 @@ function getCollectiblePedestals(): EntityPickup[] {
       result.push(pickup);
     }
   }
+
+  roomPedestalCache = { room: currentRoom, pedestals: result };
   return result;
 }
+
+interface PedestalCache {
+  room: number;
+  pedestals: EntityPickup[];
+}
+
+let roomPedestalCache: PedestalCache = { room: -1, pedestals: [] };
 
 export class PedestalOverlayFeature extends ModFeature {
   private readonly modRef: ModUpgraded;
   private lastPlayedRoom = -1;
   private lineDelayFrames = 0;
-  private noSprite: Sprite | undefined;
-  private noCBSprite: Sprite | undefined;
-  private noDNSprite: Sprite | undefined;
   private cachedDCRoom = -1;
   private cachedDCItemType: CollectibleType | undefined;
   private cachedDCEntity: EntityPickup | null | undefined;
@@ -75,18 +90,19 @@ export class PedestalOverlayFeature extends ModFeature {
 
   @Callback(ModCallback.POST_GAME_STARTED)
   postGameStarted(): void {
-    const api = this.modRef as unknown as {
-      isCollectibleUnlocked: (
-        collectibleType: number,
-        itemPoolType: number,
-      ) => boolean;
-    };
+    const api = this.modRef as ModWithUnlockCheck;
     buildLockedItems((type, poolType) =>
       api.isCollectibleUnlocked(type as number, poolType as number),
     );
     invalidateRegistryCaches();
   }
 
+  // NOTE: This POST_RENDER callback mutates instance state (lineDelayFrames,
+  // lastPlayedRoom, dcFamiliar) during the render phase. Isaac's Lua API
+  // executes callbacks synchronously per frame, so state updates here are
+  // immediately visible to the next draw call within the same frame and do
+  // not cause visual tearing. The alternative MC_POST_UPDATE is not available
+  // in the Isaac modding API.
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
     if (!overlayPinned.get()) {
@@ -161,35 +177,14 @@ export class PedestalOverlayFeature extends ModFeature {
     Isaac.RenderScaledText(text, startX + 20, y, 0.75, 0.75, r, g, b, 0.9);
   }
 
-  private getIndicatorSprite(label: string): Sprite | undefined {
+  private getIndicatorSprite(label: string): Sprite {
     if (label === "NO") {
-      if (this.noSprite === undefined) {
-        this.noSprite = Sprite();
-        this.noSprite.Load("gfx/ui/nospin.anm2", true);
-        this.noSprite.SetFrame("idle", 0);
-        this.noSprite.LoadGraphics();
-      }
-      return this.noSprite;
+      return loadStaticSprite("gfx/ui/nospin.anm2", "idle");
     }
     if (label === "CB") {
-      if (this.noCBSprite === undefined) {
-        this.noCBSprite = Sprite();
-        this.noCBSprite.Load("gfx/ui/nospin_cb.anm2", true);
-        this.noCBSprite.SetFrame("idle", 0);
-        this.noCBSprite.LoadGraphics();
-      }
-      return this.noCBSprite;
+      return loadStaticSprite("gfx/ui/nospin_cb.anm2", "idle");
     }
-    if (label === "DN") {
-      if (this.noDNSprite === undefined) {
-        this.noDNSprite = Sprite();
-        this.noDNSprite.Load("gfx/ui/nospin_dn.anm2", true);
-        this.noDNSprite.SetFrame("idle", 0);
-        this.noDNSprite.LoadGraphics();
-      }
-      return this.noDNSprite;
-    }
-    return undefined;
+    return loadStaticSprite("gfx/ui/nospin_dn.anm2", "idle");
   }
 
   private renderPedestalSpins(player: EntityPlayer): void {
@@ -210,15 +205,13 @@ export class PedestalOverlayFeature extends ModFeature {
 
       if (!result.reachable) {
         const sprite = this.getIndicatorSprite(result.label);
-        if (sprite !== undefined) {
-          sprite.Color = Color(200 / 255, 0, 0, 1);
-          sprite.Scale = Vector(INDICATOR_SCALE, INDICATOR_SCALE);
-          sprite.Render(
-            Vector(screenPos.X, screenPos.Y + INDICATOR_Y_OFFSET),
-            Vector(0, 0),
-            Vector(0, 0),
-          );
-        }
+        sprite.Color = Color(200 / 255, 0, 0, 1);
+        sprite.Scale = Vector(INDICATOR_SCALE, INDICATOR_SCALE);
+        sprite.Render(
+          Vector(screenPos.X, screenPos.Y + INDICATOR_Y_OFFSET),
+          Vector(0, 0),
+          Vector(0, 0),
+        );
         continue;
       }
 

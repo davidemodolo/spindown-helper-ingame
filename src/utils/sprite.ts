@@ -41,9 +41,14 @@ export function loadStaticSprite(
   return sprite;
 }
 
+const animatedSpriteKeys = new Set<string>();
+
 export function loadAnimatedSprite(anm2Path: string, animName: string): Sprite {
-  const key = `${anm2Path}::${animName}::play`;
+  const key = `${anm2Path}::${animName}`;
   const sprite = getOrCreateGenericSprite(anm2Path, key);
-  sprite.Play(animName, true);
+  if (!animatedSpriteKeys.has(key)) {
+    sprite.Play(animName, true);
+    animatedSpriteKeys.add(key);
+  }
   return sprite;
 }

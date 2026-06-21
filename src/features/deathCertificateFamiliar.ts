@@ -1,5 +1,5 @@
 import { CollectibleType } from "isaac-typescript-definitions";
-import { getCollectibleSprite } from "../utils/sprite";
+import { getCollectibleSprite, loadAnimatedSprite } from "../utils/sprite";
 
 const ORBIT_RADIUS = 18;
 const ORBIT_RADIUS_GROW = 0.5;
@@ -16,7 +16,6 @@ export class DeathCertificateFamiliar {
   private orbitRadius = 0;
   private targetEntity: EntityPickup | null = null;
   private yoListenSprite: Sprite | undefined;
-  private haloSprite: Sprite | undefined;
 
   get isActive(): boolean {
     return this.pos !== null;
@@ -82,18 +81,13 @@ export class DeathCertificateFamiliar {
       return;
     }
 
-    if (this.haloSprite === undefined) {
-      this.haloSprite = Sprite();
-      this.haloSprite.Load("gfx/ui/halo.anm2", true);
-      this.haloSprite.Play("Idle", true);
-      this.haloSprite.LoadGraphics();
-    }
+    const halo = loadAnimatedSprite("gfx/ui/halo.anm2", "Idle");
 
     sprite.Update();
-    this.haloSprite.Update();
-    this.haloSprite.Scale = Vector(FAMILIAR_SCALE * 1.6, FAMILIAR_SCALE * 1.6);
-    this.haloSprite.Color = Color(1, 1, 1, 0.6);
-    this.haloSprite.Render(this.pos, HALO_OFFSET, Vector(0, 0));
+    halo.Update();
+    halo.Scale = Vector(FAMILIAR_SCALE * 1.6, FAMILIAR_SCALE * 1.6);
+    halo.Color = Color(1, 1, 1, 0.6);
+    halo.Render(this.pos, HALO_OFFSET, Vector(0, 0));
     sprite.Scale = Vector(FAMILIAR_SCALE, FAMILIAR_SCALE);
     sprite.Color = Color(1, 1, 1, 1);
     sprite.Render(this.pos, Vector(0, 0), Vector(0, 0));

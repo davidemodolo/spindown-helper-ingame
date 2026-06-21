@@ -18,6 +18,7 @@ import {
   selectedItemType,
 } from "../state";
 import type { RGBA } from "../utils/color";
+import { makeColor, makeKColor } from "../utils/color";
 import type { ItemEntry } from "../utils/items";
 import { searchItems } from "../utils/items";
 import { getCollectibleSprite, loadStaticSprite } from "../utils/sprite";
@@ -37,6 +38,7 @@ const CONTENT_RIGHT = Math.ceil(WIN_W / 56);
 const KEY_ROW_H = 8;
 const KEY_W = 8;
 const SPECIAL_W = 48;
+const SELECT_COOLDOWN_FRAMES = 15;
 
 const SPRITE_SCALE = 0.4;
 const SPRITE_PX = Math.floor(SPRITE_SCALE * 30);
@@ -61,17 +63,8 @@ function getKbFont(): Font {
   return fonts.terminus;
 }
 
-function rtext(s: string, x: number, y: number, [r, g, b, a]: RGBA): void {
-  getKbFont().DrawStringScaled(
-    s,
-    x,
-    y,
-    0.55,
-    0.55,
-    KColor(r, g, b, a),
-    0,
-    false,
-  );
+function rtext(s: string, x: number, y: number, rgba: RGBA): void {
+  getKbFont().DrawStringScaled(s, x, y, 0.55, 0.55, makeKColor(rgba), 0, false);
 }
 
 function shortenName(name: string, maxChars: number): string {
@@ -336,20 +329,20 @@ export class VirtualKeyboardFeature extends ModFeature {
     if (this.cursorInResults) {
       if (confirm && !this.wasConfirmPressed) {
         this.selectHighlightedResult();
-        this.selectCooldown = 15;
+        this.selectCooldown = SELECT_COOLDOWN_FRAMES;
       }
       if (back && !this.wasBackPressed) {
         this.closeKeyboard();
-        this.selectCooldown = 15;
+        this.selectCooldown = SELECT_COOLDOWN_FRAMES;
       }
     } else {
       if (confirm && !this.wasConfirmPressed) {
         this.typeKeyboardKey();
-        this.selectCooldown = 15;
+        this.selectCooldown = SELECT_COOLDOWN_FRAMES;
       }
       if (back && !this.wasBackPressed) {
         this.backspace();
-        this.selectCooldown = 15;
+        this.selectCooldown = SELECT_COOLDOWN_FRAMES;
       }
     }
     this.wasConfirmPressed = confirm;
@@ -493,8 +486,8 @@ export class VirtualKeyboardFeature extends ModFeature {
         const sprite = getCollectibleSprite(gfx);
         if (sprite !== undefined) {
           sprite.Color = sel
-            ? Color(...THEME.resultSpriteSelected)
-            : Color(...THEME.resultSpriteNormal);
+            ? makeColor(THEME.resultSpriteSelected)
+            : makeColor(THEME.resultSpriteNormal);
           sprite.SetFrame("Idle", 8);
           sprite.Scale = Vector(SPRITE_SCALE, SPRITE_SCALE);
           sprite.Render(
@@ -505,9 +498,6 @@ export class VirtualKeyboardFeature extends ModFeature {
         }
       }
 
-      const [rr, rg, rb, ra] = sel
-        ? THEME.resultNameSelected
-        : THEME.resultNameNormal;
       const name = shortenName(item.name, 17);
       fonts.droid.DrawStringScaled(
         name,
@@ -515,7 +505,7 @@ export class VirtualKeyboardFeature extends ModFeature {
         nameY,
         FONT_SCALE,
         FONT_SCALE,
-        KColor(rr, rg, rb, ra),
+        makeKColor(sel ? THEME.resultNameSelected : THEME.resultNameNormal),
         0,
         false,
       );
@@ -576,7 +566,7 @@ export class VirtualKeyboardFeature extends ModFeature {
       y,
       0.5,
       0.5,
-      KColor(...THEME.helpText),
+      makeKColor(THEME.helpText),
       0,
       false,
     );

@@ -69,8 +69,10 @@ export function computeSpins(
     }
   }
 
-  // When many items between `fromID` and `toID` are skipped (hidden/locked), the
-  // effective step count can drop to zero or below, making the target unreachable.
+  // If many items between fromID and toID are skipped as hidden or locked,
+  // the effective step count can drop to zero or negative, making the target
+  // unreachable. This is common when many items near the target are locked
+  // and the two collectible IDs are close together.
   if (steps <= 0) {
     return { label: "NO", spins: -1, reachable: false };
   }

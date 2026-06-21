@@ -1,6 +1,7 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
 import { FAVORITE_ITEM_TYPES, HIDDEN_SPINDOWN_IDS } from "../constants";
 import { getLockedItems } from "./lockedItems";
+import { memoize } from "./memo";
 
 export interface ItemEntry {
   name: string;
@@ -10,20 +11,9 @@ export interface ItemEntry {
   wordKeys: readonly string[];
 }
 
-let cachedRegistry: ItemEntry[] | undefined;
-
 interface TrieNode {
   items: Map<ItemEntry, number>;
   children: Map<string, TrieNode>;
-}
-
-let cachedTrie: TrieNode | undefined;
-let cachedFavorites: ItemEntry[] | undefined;
-
-export function invalidateRegistryCaches(): void {
-  cachedRegistry = undefined;
-  cachedTrie = undefined;
-  cachedFavorites = undefined;
 }
 
 const MIN_SUFFIX_LEN = 2;
@@ -52,11 +42,7 @@ function makeSearchKey(name: string): string {
   return result;
 }
 
-function getItemRegistry(): readonly ItemEntry[] {
-  if (cachedRegistry !== undefined) {
-    return cachedRegistry;
-  }
-
+function buildRegistry(): readonly ItemEntry[] {
   const itemConfig = Isaac.GetItemConfig();
   const lockedItems = getLockedItems();
   const entries: ItemEntry[] = [];
@@ -95,8 +81,13 @@ function getItemRegistry(): readonly ItemEntry[] {
     });
   }
 
-  cachedRegistry = entries;
-  return cachedRegistry;
+  return entries;
+}
+
+const registryMemo = memoize(buildRegistry);
+
+function getItemRegistry(): readonly ItemEntry[] {
+  return registryMemo.get();
 }
 
 function insertIntoTrie(
@@ -140,22 +131,16 @@ function buildTrie(registry: readonly ItemEntry[]): TrieNode {
     }
   }
 
-  cachedTrie = root;
   return root;
 }
 
+const trieMemo = memoize(() => buildTrie(getItemRegistry()));
+
 function getTrie(): TrieNode {
-  if (cachedTrie !== undefined) {
-    return cachedTrie;
-  }
-  const registry = getItemRegistry();
-  return buildTrie(registry);
+  return trieMemo.get();
 }
 
-function getFavoriteItems(): ItemEntry[] {
-  if (cachedFavorites !== undefined) {
-    return cachedFavorites;
-  }
+function buildFavorites(): ItemEntry[] {
   const registry = getItemRegistry();
   const byType = new Map<CollectibleType, ItemEntry>();
   for (const entry of registry) {
@@ -168,8 +153,13 @@ function getFavoriteItems(): ItemEntry[] {
       favorites.push(entry);
     }
   }
-  cachedFavorites = favorites;
   return favorites;
+}
+
+const favoritesMemo = memoize(buildFavorites);
+
+function getFavoriteItems(): ItemEntry[] {
+  return favoritesMemo.get();
 }
 
 export function searchItems(query: string, maxResults = 20): ItemEntry[] {
@@ -205,4 +195,10 @@ export function searchItems(query: string, maxResults = 20): ItemEntry[] {
   }
 
   return results;
+}
+
+export function invalidateRegistryCaches(): void {
+  registryMemo.invalidate();
+  trieMemo.invalidate();
+  favoritesMemo.invalidate();
 }

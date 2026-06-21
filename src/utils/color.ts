@@ -1,5 +1,13 @@
 export type RGBA = readonly [number, number, number, number];
 
+export function makeColor([r, g, b, a]: RGBA): Color {
+  return Color(r, g, b, a);
+}
+
+export function makeKColor([r, g, b, a]: RGBA): KColor {
+  return KColor(r, g, b, a);
+}
+
 const spinColorCache: KColor[] = [];
 
 function initSpinColors(): void {
