@@ -4,6 +4,7 @@
 
 .claude/
 .vscode/
+*.zip
 docs/
 old_version/
 

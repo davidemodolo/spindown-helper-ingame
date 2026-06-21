@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/setup
+      - run: npm run build
+
+      - name: Create mod zip
+        run: |
+          rm -rf /tmp/modpkg
+          cp -r mod /tmp/modpkg
+          cd /tmp
+          mv modpkg spindown-helper-ingame
+          zip -r "$GITHUB_WORKSPACE/spindown-helper-ingame.zip" spindown-helper-ingame/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: spindown-helper-ingame.zip
+          generate_release_notes: true
