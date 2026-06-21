@@ -29,5 +29,5 @@
     "mod/content/rooms/**",
     "mod/resources/rooms/**",
   ],
-  "words": ["ingame", "nospin", "recompiles", "rtext"],
+  "words": ["ingame", "nospin", "rtext"],
 }

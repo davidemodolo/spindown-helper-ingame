@@ -48,6 +48,7 @@ export class DeathCertificateFamiliar {
 
     const dx = targetPos.X - this.pos.X;
     const dy = targetPos.Y - this.pos.Y;
+    // eslint-disable-next-line unicorn/prefer-modern-math-apis
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (this.orbiting) {

@@ -88,4 +88,3 @@ If the item is not in the current room, the familiar resets and only the item na
 All cached per-room for performance.
 
 ![Item found](in-game_screenshots/DC_found.jpg)
-
