@@ -17,6 +17,20 @@ export default defineConfig(
   {
     rules: {
       // Insert changed or disabled rules here, if necessary.
+
+      // The IsaacScript Lua API types do not accurately represent runtime nullability. Conditions
+      // like `if (player !== undefined)` are necessary at runtime even if TypeScript thinks they
+      // cannot happen.
+      "@typescript-eslint/no-unnecessary-condition": "off",
+
+      // Non-null assertions (!) are required in IsaacScript because the Lua-to-TypeScript bindings
+      // do not accurately track nullability. Array indexing (e.g. `pools[0]`) can return undefined
+      // at runtime even when TypeScript believes it cannot.
+      "@typescript-eslint/no-non-null-assertion": "off",
+
+      // Non-null assertions often trigger this companion rule claiming the assertion is
+      // unnecessary, but in IsaacScript it is necessary.
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
   },
 );

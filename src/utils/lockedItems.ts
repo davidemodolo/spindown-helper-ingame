@@ -40,8 +40,3 @@ export function buildLockedItems(
   cachedLockedItems = locked;
   lockedItemsBuilt = true;
 }
-
-export function invalidateLockedItemsCache(): void {
-  cachedLockedItems = undefined;
-  lockedItemsBuilt = false;
-}

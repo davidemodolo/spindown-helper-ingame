@@ -1,6 +1,6 @@
-export interface Memo<T> {
-  get(): T;
-  invalidate(): void;
+interface Memo<T> {
+  get: () => T;
+  invalidate: () => void;
 }
 
 export function memoize<T>(factory: () => T): Memo<T> {

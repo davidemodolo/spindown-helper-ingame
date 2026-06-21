@@ -1,9 +1,9 @@
 import type { CollectibleType } from "isaac-typescript-definitions";
 
-export interface StateSlice<T> {
+interface StateSlice<T> {
   readonly get: () => T;
   readonly set: (next: T) => void;
-  subscribe(fn: () => void): () => void;
+  subscribe: (fn: () => void) => () => void;
 }
 
 function createSlice<T>(initial: T): StateSlice<T> {

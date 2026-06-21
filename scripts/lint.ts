@@ -28,6 +28,7 @@ await lintScript(import.meta.dirname, async () => {
 
   const pythonExists = await commandExists("python");
   if (pythonExists) {
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     await $`python -m pip install isaac-xml-validator --upgrade --quiet`;
     promises.push($`isaac-xml-validator --quiet`);
   }

@@ -2,13 +2,13 @@ import { CollectibleType } from "isaac-typescript-definitions";
 
 export const MOD_NAME = "spindown-helper-ingame";
 
-export const FAVORITE_ITEM_TYPES: readonly CollectibleType[] = [
+export const FAVORITE_ITEM_TYPES = [
   CollectibleType.DEATH_CERTIFICATE,
   CollectibleType.DIPLOPIA,
   CollectibleType.GLITCHED_CROWN,
   CollectibleType.SHARP_PLUG,
   CollectibleType.D_INFINITY,
-];
+] as const;
 
 export const HIDDEN_SPINDOWN_IDS: ReadonlySet<CollectibleType> = new Set([
   59 as CollectibleType, // Passive Book of Belial (Birthright Judas)
@@ -17,7 +17,7 @@ export const HIDDEN_SPINDOWN_IDS: ReadonlySet<CollectibleType> = new Set([
   715 as CollectibleType, // Hold (Tainted ??? starting item, hidden)
 ]);
 
-export const KEYBOARD_ROWS: readonly (readonly string[])[] = [
+export const KEYBOARD_ROWS = [
   ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],

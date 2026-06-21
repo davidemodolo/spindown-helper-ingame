@@ -34,7 +34,10 @@ import {
 import { DeathCertificateFamiliar } from "./deathCertificateFamiliar";
 
 interface ModWithUnlockCheck extends ModUpgraded {
-  isCollectibleUnlocked(collectibleType: number, itemPoolType: number): boolean;
+  isCollectibleUnlocked: (
+    collectibleType: number,
+    itemPoolType: number,
+  ) => boolean;
 }
 
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY;
@@ -48,7 +51,7 @@ const FAMILIAR_Y_OFFSET = -10;
 const BOTTOM_HUD_Y = 26;
 const ITEM_SPRITE_SCALE = 0.5;
 
-function getCollectiblePedestals(): EntityPickup[] {
+function getCollectiblePedestals(): readonly EntityPickup[] {
   const currentRoom = Game().GetLevel().GetCurrentRoomIndex();
   if (roomPedestalCache.room === currentRoom) {
     return roomPedestalCache.pedestals;
@@ -74,7 +77,7 @@ function getCollectiblePedestals(): EntityPickup[] {
 
 interface PedestalCache {
   room: number;
-  pedestals: EntityPickup[];
+  pedestals: readonly EntityPickup[];
 }
 
 let roomPedestalCache: PedestalCache = { room: -1, pedestals: [] };
@@ -104,12 +107,11 @@ export class PedestalOverlayFeature extends ModFeature {
     invalidateRegistryCaches();
   }
 
-  // NOTE: This POST_RENDER callback mutates instance state (lineDelayFrames,
-  // lastPlayedRoom, dcFamiliar) during the render phase. Isaac's Lua API
-  // executes callbacks synchronously per frame, so state updates here are
-  // immediately visible to the next draw call within the same frame and do
-  // not cause visual tearing. The alternative MC_POST_UPDATE is not available
-  // in the Isaac modding API.
+  // NOTE: This POST_RENDER callback mutates instance state (lineDelayFrames, lastPlayedRoom,
+  // dcFamiliar) during the render phase. Isaac's Lua API executes callbacks synchronously per
+  // frame, so state updates here are immediately visible to the next draw call within the same
+  // frame and do not cause visual tearing. The alternative MC_POST_UPDATE is not available in the
+  // Isaac modding API.
   @Callback(ModCallback.POST_RENDER)
   postRender(): void {
     if (!overlayPinned.get()) {
@@ -176,7 +178,7 @@ export class PedestalOverlayFeature extends ModFeature {
   private renderBottomHUD(text: string, r = 1, g = 1, b = 1): void {
     const gfxFileName = this.getSelectedItemGfxFileName();
     const sprite =
-      gfxFileName !== undefined ? getCollectibleSprite(gfxFileName) : undefined;
+      gfxFileName === undefined ? undefined : getCollectibleSprite(gfxFileName);
 
     const sw = Isaac.GetScreenWidth();
     const sh = Isaac.GetScreenHeight();
@@ -308,7 +310,12 @@ export class PedestalOverlayFeature extends ModFeature {
 
     const foundEntity = this.cachedDCEntity ?? null;
 
-    if (foundEntity !== null) {
+    if (foundEntity === null) {
+      this.lastPlayedRoom = -1;
+      this.lineDelayFrames = 0;
+      this.dcFamiliar.reset();
+      this.renderBottomHUD(selectedItemName.get());
+    } else {
       this.dcFamiliar.setTarget(foundEntity);
 
       if (roomIndex !== this.lastPlayedRoom) {
@@ -319,11 +326,6 @@ export class PedestalOverlayFeature extends ModFeature {
         this.dcFamiliar.reset();
       }
       this.renderItemFound(player, foundEntity);
-    } else {
-      this.lastPlayedRoom = -1;
-      this.lineDelayFrames = 0;
-      this.dcFamiliar.reset();
-      this.renderBottomHUD(selectedItemName.get());
     }
   }
 

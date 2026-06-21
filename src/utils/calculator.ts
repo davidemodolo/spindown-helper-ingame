@@ -2,12 +2,12 @@ import { CollectibleType } from "isaac-typescript-definitions";
 import { HIDDEN_SPINDOWN_IDS } from "../constants";
 import { getLockedItems } from "./lockedItems";
 
-export interface SpinResult {
+interface SpinResult {
   /** Display text (e.g. "5", "NO", "DN", "CB") */
   label: string;
-  /** Number of spins needed, or -1 if unreachable */
+  /** Number of spins needed, or negative one if unreachable. */
   spins: number;
-  /** Whether the target is reachable */
+  /** Whether the target is reachable. */
   reachable: boolean;
 }
 
@@ -70,10 +70,9 @@ export function computeSpins(
     }
   }
 
-  // If many items between fromID and toID are skipped as hidden or locked,
-  // the effective step count can drop to zero or negative, making the target
-  // unreachable. This is common when many items near the target are locked
-  // and the two collectible IDs are close together.
+  // If many items between fromID and toID are skipped as hidden or locked, the effective step count
+  // can drop to zero or negative, making the target unreachable. This is common when many items
+  // near the target are locked and the two collectible IDs are close together.
   if (steps <= 0) {
     return { label: "NO", spins: -1, reachable: false };
   }

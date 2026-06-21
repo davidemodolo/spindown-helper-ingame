@@ -19,10 +19,16 @@ interface TrieNode {
 const MIN_SUFFIX_LEN = 2;
 
 function resolveItemName(raw: string): string {
-  if (!raw.startsWith("$") && !raw.startsWith("#")) return raw;
+  if (!raw.startsWith("$") && !raw.startsWith("#")) {
+    return raw;
+  }
   let key = raw.slice(1);
-  if (key.endsWith("_NAME")) key = key.slice(0, -5);
-  if (key.endsWith("_")) key = key.slice(0, -1);
+  if (key.endsWith("_NAME")) {
+    key = key.slice(0, -5);
+  }
+  if (key.endsWith("_")) {
+    key = key.slice(0, -1);
+  }
   return key
     .split("_")
     .filter((w) => w.length > 0)
@@ -122,9 +128,8 @@ function buildTrie(registry: readonly ItemEntry[]): TrieNode {
       insertIntoTrie(root, wk, entry, 1);
     }
 
-    // Insert every suffix (min 2 chars) as priority-2 substring matches.
-    // O(n × m²) where n = item count (~700) and m = avg key length (~15).
-    // Runs once at startup; acceptable for this domain.
+    // Insert every suffix (min 2 chars) as priority-2 substring matches. O(n × m²) where n = item
+    // count (~700) and m = avg key length (~15). Runs once at startup; acceptable for this domain.
     const key = entry.searchKey;
     for (let start = 1; start <= key.length - MIN_SUFFIX_LEN; start++) {
       insertIntoTrie(root, key.slice(start), entry, 2);
@@ -140,7 +145,7 @@ function getTrie(): TrieNode {
   return trieMemo.get();
 }
 
-function buildFavorites(): ItemEntry[] {
+function buildFavorites(): readonly ItemEntry[] {
   const registry = getItemRegistry();
   const byType = new Map<CollectibleType, ItemEntry>();
   for (const entry of registry) {
@@ -158,11 +163,14 @@ function buildFavorites(): ItemEntry[] {
 
 const favoritesMemo = memoize(buildFavorites);
 
-function getFavoriteItems(): ItemEntry[] {
+function getFavoriteItems(): readonly ItemEntry[] {
   return favoritesMemo.get();
 }
 
-export function searchItems(query: string, maxResults = 20): ItemEntry[] {
+export function searchItems(
+  query: string,
+  maxResults = 20,
+): readonly ItemEntry[] {
   if (query.length === 0) {
     return getFavoriteItems();
   }
@@ -181,7 +189,7 @@ export function searchItems(query: string, maxResults = 20): ItemEntry[] {
 
   const results: ItemEntry[] = [];
   const seen = new Set<ItemEntry>();
-  const sorted = [...node.items.entries()].sort((a, b) => a[1] - b[1]);
+  const sorted = [...node.items.entries()].toSorted((a, b) => a[1] - b[1]);
 
   for (const [item] of sorted) {
     if (seen.has(item)) {

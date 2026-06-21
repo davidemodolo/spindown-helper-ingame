@@ -23,16 +23,17 @@ While the keyboard is open, the player's controls are disabled.
 
 ### Search for an item
 
-| Control | Action |
-|---|---|
-| Arrow keys / D-pad | Navigate the letter grid |
-| Confirm / Item button | Type the highlighted letter |
-| Back / Bomb button | Delete the last character |
-| `[SPACE]` | Type a space |
-| `[CLEAR]` | Clear the selected item and close |
-| `[OVERLAY]` | Toggle the overlay on/off and close (glows gold when active) |
+| Control               | Action                                                       |
+| --------------------- | ------------------------------------------------------------ |
+| Arrow keys / D-pad    | Navigate the letter grid                                     |
+| Confirm / Item button | Type the highlighted letter                                  |
+| Back / Bomb button    | Delete the last character                                    |
+| `[SPACE]`             | Type a space                                                 |
+| `[CLEAR]`             | Clear the selected item and close                            |
+| `[OVERLAY]`           | Toggle the overlay on/off and close (glows gold when active) |
 
 As you type, up to 5 matching items appear above the keyboard:
+
 - The top row shows results 4–5 (if any)
 - The bottom row shows results 1–3
 
@@ -46,12 +47,12 @@ When the search is empty, five favorites are shown by default (only those that a
 
 Once an item is selected and the overlay is on, every collectible pedestal in the room shows an indicator above it. **Spindown Dice must be equipped** in one of your active slots (primary, secondary, or pocket) for the overlay to display; otherwise only the bottom HUD is shown.
 
-| Indicator | Meaning |
-|---|---|
-| `1`, `2`, `3`… | Spins needed (color fades from green to red-orange with distance) |
-| ⃠| Unreachable; target ID is equal or higher, target is hidden/locked, or too many items are skipped |
-| ⃠  over Car Battery | Unreachable with **Car Battery** (odd step count is doubled, making it unreachable) |
-| ⃠  over Dad's Note | **Dad's Note** on the path; Spindown would land on Dad's Note instead |
+| Indicator          | Meaning                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| `1`, `2`, `3`…     | Spins needed (color fades from green to red-orange with distance)                                 |
+| ⃠                  | Unreachable; target ID is equal or higher, target is hidden/locked, or too many items are skipped |
+| ⃠ over Car Battery | Unreachable with **Car Battery** (odd step count is doubled, making it unreachable)               |
+| ⃠ over Dad's Note  | **Dad's Note** on the path; Spindown would land on Dad's Note instead                             |
 
 Unreachable items show a red "prohibited" sprite (red circle with diagonal line). When the cause is Car Battery or Dad's Note, their item sprites appear underneath as a hint.
 
@@ -88,11 +89,3 @@ All cached per-room for performance.
 
 ![Item found](in-game_screenshots/DC_found.jpg)
 
-## Build
-
-```bash
-npm ci           # install dependencies
-npm start        # launch the IsaacScript monitor (auto-recompiles on changes)
-```
-
-Copy or symlink the `mod/` folder into your Isaac mods directory (`/mods/spindown-helper-ingame/`).
