@@ -1,61 +1,104 @@
 # Spindown Helper In-Game
 
-In-game mod for [_The Binding of Isaac: Repentance_](https://store.steampowered.com/app/1426300/The_Binding_of_Isaac_Repentance/) that shows how many Spindown Dice spins are needed to reach a desired item — no external companion app required.
+In-game mod for [_The Binding of Isaac: Repentance_](https://store.steampowered.com/app/1426300/The_Binding_of_Isaac_Repentance/) that shows how many Spindown Dice spins are needed to reach a desired item, and helps locate items on the Death Certificate floor — no external companion app or website required.
 
 Written in [TypeScript](https://www.typescriptlang.org/) using [IsaacScript](https://isaacscript.github.io/).
 
+## Features
+
+- **Virtual keyboard** — search and select any collectible item by name
+- **Pedestal overlays** — spin counts, reachability indicators, and color-coded distance shown above every pedestal in the room
+- **Item found halo + jingle** — a glowing halo marks the pedestal when the selected item is found in the current room, accompanied by a secret-room-found chime
+- **Death Certificate familiar** — a Yo Listen? familiar flies toward the target item on the Death Certificate floor, drawn with a trailing halo
+- **Car Battery support** — double-spin steps are computed automatically and displayed
+- **Hidden / locked item filtering** — items that cannot be reached (hidden, locked, or blocked by Dad's Note) are correctly excluded
+
 ## How to Use
 
-### Select a target item
+### Open the keyboard
 
-Double-tap the **Map button** (`Tab` on keyboard, Select on controller) to open the in-game virtual keyboard:
+Double-tap the **Map button** (`Tab` on keyboard, Select on controller) to open the virtual keyboard. Double-tap again to close it.
 
-- **Arrow keys / D-pad** — move the cursor across the letter grid
-- **Confirm / Item button** — type the highlighted letter
-- **Back / Bomb button** — delete the last character
-- **`[SPACE]`** — type a space
-- **`[CLEAR]`** — clear the selected item and close
-- **`[OVERLAY]`** — toggle the overlay on/off and close (glows gold when active)
+While the keyboard is open, the player's controls are disabled.
 
-As you type, up to 3 matching items appear above the keyboard. Push **Up** to enter the results row, then **Left/Right** to navigate between matches. Press **Confirm** to select one.
+<!-- image: virtual keyboard open over gameplay, showing search results and the letter grid -->
 
-When the search is empty, three favorites are shown by default: **Death Certificate**, **Diplopia**, and **Glitched Crown**.
+### Search for an item
 
-Double-tap **Map** again to close the keyboard.
+| Control | Action |
+|---|---|
+| Arrow keys / D-pad | Navigate the letter grid |
+| Confirm / Item button | Type the highlighted letter |
+| Back / Bomb button | Delete the last character |
+| `[SPACE]` | Type a space |
+| `[CLEAR]` | Clear the selected item and close |
+| `[OVERLAY]` | Toggle the overlay on/off and close (glows gold when active) |
 
-### View spin counts
+As you type, up to 5 matching items appear above the keyboard:
+- The top row shows results 4–5 (if any)
+- The bottom row shows results 1–3
 
-Once an item is selected and the overlay is on (via `[OVERLAY]` or by selecting a result), every collectible pedestal in the room shows a label above it:
+Push **Up** from the keyboard grid to enter the results area, then use **Left/Right** to navigate and **Confirm** to select an item. Push **Down** from the results to return to the keyboard.
+
+When the search is empty, five favorites are shown: **Death Certificate**, **Diplopia**, **Glitched Crown**, **Sharp Plug**, and **D Infinity**.
+
+<!-- image: search in progress showing filtered results -->
+
+### Read the overlay
+
+Once an item is selected and the overlay is on, every collectible pedestal in the room shows an indicator above it:
 
 | Indicator | Meaning |
-|-----------|---------|
-| `X` | Number of Spindown Dice spins to reach the target (color-coded by distance: green → yellow-green → yellow → orange → red-orange) |
-| ⃠ | Unreachable — target ID is equal or higher, or blocked by a hidden item |
-| ⃠ over Car Battery | Skipped due to **Car Battery** (odd step count doubled, unreachable) |
+|---|---|
+| `1`, `2`, `3`… | Spins needed (color fades from green to red-orange with distance) |
+| `NO` (⃠) | Unreachable — target ID is equal or higher, target is hidden/locked, or too many items are skipped |
+| ⃠ over Car Battery | Unreachable with **Car Battery** (odd step count is doubled, making it unreachable) |
 | ⃠ over Dad's Note | **Dad's Note** on the path — Spindown would land on Dad's Note instead |
 
-Unreachable items show a "prohibited" sprite (red circle with diagonal line) instead of text. When the cause is Car Battery or Dad's Note, their respective item sprites appear underneath the prohibited overlay.
+Unreachable items show a red "prohibited" sprite (red circle with diagonal line). When the cause is Car Battery or Dad's Note, their item sprites appear underneath as a hint.
 
-The selected item is also shown in the bottom HUD (sprite + name) at the center of the screen.
+The selected item's sprite and name are also displayed in the bottom HUD at the center of the screen.
 
-### Death Certificate
+<!-- image: room with multiple pedestals showing spin count labels, color-coded by distance -->
 
-When inside the Death Certificate floor, the mod stops showing spin counts and instead helps you find the room containing your selected item:
+### Item found (halo + jingle)
 
-- **"Item here!"** text appears on screen
-- A **dotted green line** draws from your position to the item (after a short delay)
-- A **Holy Card sound** plays when you enter the correct room
+When the selected item is physically present on a pedestal in the room:
 
-![Screenshot 1](resources/github_imgs/1.png)
+- A **white animated halo** appears above that pedestal
+- The **secret room found jingle** plays
+- The bottom HUD changes from `"Item Name"` to `"Item Name here!"` in aqua-blue text
 
-![Screenshot 2](resources/github_imgs/2.png)
+There is a brief 15-frame delay after entering a new room or hearing the jingle before any indicators appear, giving you a moment to orient yourself.
 
-![Screenshot 3](resources/github_imgs/3.png)
+<!-- image: pedestal with halo animation over the target item, bottom HUD showing "item name here!" in aqua -->
 
-## How to Compile
+### Death Certificate floor
 
-- Install [Node.js](https://nodejs.org/en/download/)
-- Clone this repository
-- Run `npm ci` to install dependencies
-- Run `npm start` to launch the IsaacScript monitor (auto-recompiles on changes)
-- Copy or symlink the `mod/` folder into your Isaac mods directory
+When inside the Death Certificate area:
+
+- The overlay switches from spin-count mode to **item-finding mode**
+- If the target item is locked, the bottom HUD simply shows the item name
+- If the target item is unlocked and present in the current room:
+  - A **"Item Name here!"** message appears in aqua-blue at the bottom
+  - A **Yo Listen? familiar** (with a trailing halo) spawns from your position and flies toward the item, then orbits around it
+  - The **secret room found jingle** plays on entering the correct room
+
+If the item is not in the current room, the familiar resets and only the item name is shown.
+
+All cached per-room for performance.
+
+<!-- image: death certificate floor showing the Yo Listen? familiar flying toward a pedestal with halo trailing, bottom HUD showing "item name here!" -->
+
+## Build
+
+```bash
+npm ci           # install dependencies
+npm start        # launch the IsaacScript monitor (auto-recompiles on changes)
+```
+
+Copy or symlink the `mod/` folder into your Isaac mods directory (`/mods/spindown-helper-ingame/`).
+
+## License
+
+[GPL-3.0](LICENSE)

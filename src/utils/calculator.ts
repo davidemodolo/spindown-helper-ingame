@@ -61,7 +61,8 @@ export function computeSpins(
 
   let steps = fromID - toID - countSkippedBetween(fromID, toID);
 
-  if (toID < dadsNoteID && fromID > dadsNoteID) {
+  const dadsNoteLocked = lockedItems.has(CollectibleType.DADS_NOTE);
+  if (!dadsNoteLocked && toID < dadsNoteID && fromID > dadsNoteID) {
     const stepsToNote =
       fromID - dadsNoteID - countSkippedBetween(fromID, dadsNoteID);
     if (!carBattery || stepsToNote % 2 === 0) {
