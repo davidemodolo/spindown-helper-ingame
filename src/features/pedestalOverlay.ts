@@ -9,8 +9,10 @@ import {
 import type { ModUpgraded } from "isaacscript-common";
 import {
   Callback,
+  CallbackCustom,
   fonts,
   inDeathCertificateArea,
+  ModCallbackCustom,
   ModFeature,
   musicManager,
 } from "isaacscript-common";
@@ -93,8 +95,8 @@ export class PedestalOverlayFeature extends ModFeature {
     this.modRef = mod;
   }
 
-  @Callback(ModCallback.POST_GAME_STARTED)
-  postGameStarted(): void {
+  @CallbackCustom(ModCallbackCustom.POST_GAME_STARTED_REORDERED, undefined)
+  postGameStarted(_isContinued: boolean): void {
     const api = this.modRef as ModWithUnlockCheck;
     buildLockedItems((type, poolType) =>
       api.isCollectibleUnlocked(type as number, poolType as number),
