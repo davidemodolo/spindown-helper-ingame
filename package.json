@@ -28,7 +28,7 @@
     "complete-node": "18.0.0",
     "isaacscript": "6.0.2",
     "isaacscript-lint": "7.3.2",
-    "typescript": "6.0.2",
+    "typescript": "6.0.3",
     "typescript-to-lua": "1.37.0"
   }
 }
