@@ -1,5 +1,5 @@
 import { CollectibleType } from "isaac-typescript-definitions";
-import { getCollectibleSprite, loadAnimatedSprite } from "../utils/sprite";
+import { loadAnimatedSprite } from "../utils/sprite";
 
 const ORBIT_RADIUS = 18;
 const ORBIT_RADIUS_GROW = 0.5;
@@ -66,7 +66,7 @@ export class DeathCertificateFamiliar {
       this.orbitRadius = dist;
       this.orbiting = true;
     } else {
-      const step = Math.min(FLY_SPEED * dist, dist);
+      const step = FLY_SPEED * dist;
       this.pos.X += (dx / dist) * step;
       this.pos.Y += (dy / dist) * step;
     }
@@ -94,6 +94,9 @@ export class DeathCertificateFamiliar {
     sprite.Render(this.pos, Vector(0, 0), Vector(0, 0));
   }
 
+  // This deliberately does not use the shared sprite cache: the familiar animates the sprite with
+  // `Play`, which would conflict with other consumers of the same cached collectible sprite (e.g.
+  // Yo Listen showing up as a keyboard search result).
   private ensureYoListenSprite(): Sprite | undefined {
     if (this.yoListenSprite !== undefined) {
       return this.yoListenSprite;
@@ -101,13 +104,15 @@ export class DeathCertificateFamiliar {
     const collectible = Isaac.GetItemConfig().GetCollectible(
       CollectibleType.YO_LISTEN,
     );
-    if (collectible === undefined) {
+    if (collectible === undefined || collectible.GfxFileName.length === 0) {
       return undefined;
     }
-    this.yoListenSprite = getCollectibleSprite(collectible.GfxFileName);
-    if (this.yoListenSprite !== undefined) {
-      this.yoListenSprite.Play("Idle", true);
-    }
-    return this.yoListenSprite;
+    const sprite = Sprite();
+    sprite.Load("gfx/005.100_collectible.anm2", true);
+    sprite.ReplaceSpritesheet(1, collectible.GfxFileName);
+    sprite.LoadGraphics();
+    sprite.Play("Idle", true);
+    this.yoListenSprite = sprite;
+    return sprite;
   }
 }

@@ -34,7 +34,8 @@ const RESULTS_TOP_Y = 16;
 const RESULTS_BOT_Y = 32;
 const KEYBOARD_Y = 56;
 const HELP_Y = 100;
-const CONTENT_RIGHT = Math.ceil(WIN_W / 56);
+const CONTENT_LEFT_PAD = 4;
+const NAME_ROW_OFFSET = 6;
 const KEY_ROW_H = 8;
 const KEY_W = 8;
 const SPECIAL_W = 48;
@@ -86,8 +87,8 @@ export class VirtualKeyboardFeature extends ModFeature {
   private wasBackPressed = false;
   private selectCooldown = 0;
   private closeCooldown = 0;
-  private selectWasDown = false;
-  private selectPressTimer = 0;
+  private mapWasDown = false;
+  private mapDoubleTapTimer = 0;
 
   constructor(mod: ModUpgraded) {
     super(mod, true);
@@ -119,19 +120,9 @@ export class VirtualKeyboardFeature extends ModFeature {
     if (!isKeyboardOpen.get()) {
       if (this.closeCooldown > 0) {
         this.closeCooldown--;
-        const player = Isaac.GetPlayer(0);
-        if (player !== undefined) {
-          player.ControlsEnabled = !(this.closeCooldown > 0);
-        }
       }
       return;
     }
-
-    const player = Isaac.GetPlayer(0);
-    if (player === undefined) {
-      return;
-    }
-    player.ControlsEnabled = false;
 
     this.handleCursorMovement();
     this.handleSelectionInput();
@@ -142,19 +133,19 @@ export class VirtualKeyboardFeature extends ModFeature {
     const player = Isaac.GetPlayer(0);
     const ci = player?.ControllerIndex ?? 0;
     const mapDown = Input.IsActionPressed(ButtonAction.MAP, ci);
-    const justPressed = mapDown && !this.selectWasDown;
-    this.selectWasDown = mapDown;
+    const justPressed = mapDown && !this.mapWasDown;
+    this.mapWasDown = mapDown;
 
     if (justPressed) {
-      if (this.selectPressTimer > 0) {
+      if (this.mapDoubleTapTimer > 0) {
         this.toggleKeyboard();
-        this.selectPressTimer = 0;
+        this.mapDoubleTapTimer = 0;
       } else {
-        this.selectPressTimer = 20;
+        this.mapDoubleTapTimer = 20;
       }
     }
-    if (this.selectPressTimer > 0) {
-      this.selectPressTimer--;
+    if (this.mapDoubleTapTimer > 0) {
+      this.mapDoubleTapTimer--;
     }
   }
 
@@ -248,11 +239,9 @@ export class VirtualKeyboardFeature extends ModFeature {
   ): void {
     const n = Math.min(this.matchedItems.length, MAX_RESULTS);
     if (up) {
-      if (this.selectedResultIndex < 3) {
-        this.selectedResultIndex = Math.min(
-          this.selectedResultIndex + 3,
-          n - 1,
-        );
+      // Only move to the top row if there is a result directly above; otherwise stay put.
+      if (this.selectedResultIndex < 3 && this.selectedResultIndex + 3 < n) {
+        this.selectedResultIndex += 3;
       }
     } else if (down) {
       if (this.selectedResultIndex >= 3) {
@@ -411,10 +400,6 @@ export class VirtualKeyboardFeature extends ModFeature {
     isKeyboardOpen.set(false);
     this.cursorInResults = false;
     this.closeCooldown = 8;
-    const player = Isaac.GetPlayer(0);
-    if (player !== undefined) {
-      player.ControlsEnabled = false;
-    }
   }
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - Window rendering
@@ -425,18 +410,16 @@ export class VirtualKeyboardFeature extends ModFeature {
     const wy = WIN_Y_FN();
 
     const bg = loadStaticSprite("gfx/ui/window_bg.anm2", "bg");
-    if (bg !== undefined) {
-      bg.SetFrame("bg", 0);
-      bg.Render(Vector(wx, wy), Vector(0, 0), Vector(0, 0));
-    }
+    bg.Render(Vector(wx, wy), Vector(0, 0), Vector(0, 0));
 
     this.renderInput(wx, wy + INPUT_Y);
     const bottomN = Math.min(this.matchedItems.length, 3);
     const cellW = Math.floor((WIN_W - 16) / (bottomN === 0 ? 3 : bottomN));
-    this.renderResultsRow(wx + CONTENT_RIGHT, wy + RESULTS_BOT_Y, 0, 3, cellW);
-    this.renderResultsRow(wx + CONTENT_RIGHT, wy + RESULTS_TOP_Y, 3, 5, cellW);
-    this.renderKeyboardGrid(wx + CONTENT_RIGHT, wy + KEYBOARD_Y);
-    this.renderHelpBar(wx + CONTENT_RIGHT, wy + HELP_Y);
+    const cx = wx + CONTENT_LEFT_PAD;
+    this.renderResultsRow(cx, wy + RESULTS_BOT_Y, 0, 3, cellW);
+    this.renderResultsRow(cx, wy + RESULTS_TOP_Y, 3, 5, cellW);
+    this.renderKeyboardGrid(cx, wy + KEYBOARD_Y);
+    this.renderHelpBar(cx, wy + HELP_Y);
   }
 
   private renderInput(wx: number, y: number): void {
@@ -485,7 +468,7 @@ export class VirtualKeyboardFeature extends ModFeature {
     const useCW = cellW ?? Math.floor((WIN_W - 2 * SIDE_PAD) / n);
     const blockW = n * useCW;
     const ox = SIDE_PAD + Math.floor((WIN_W - 2 * SIDE_PAD - blockW) / 2);
-    const nameY = y + 2 + Math.ceil(WIN_H / 21);
+    const nameY = y + 2 + NAME_ROW_OFFSET;
     const FONT_SCALE = 0.48;
 
     for (let i = 0; i < n; i++) {

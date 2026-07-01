@@ -11,6 +11,10 @@ interface SpinResult {
   reachable: boolean;
 }
 
+function unreachable(label: string): SpinResult {
+  return { label, spins: -1, reachable: false };
+}
+
 function countSkippedBetween(fromID: number, toID: number): number {
   let skipped = 0;
   const lockedItems = getLockedItems();
@@ -41,20 +45,20 @@ export function computeSpins(
   const toID = toType as number;
 
   if (fromID <= toID) {
-    return { label: "NO", spins: -1, reachable: false };
+    return unreachable("NO");
   }
 
   if (HIDDEN_SPINDOWN_IDS.has(toType)) {
-    return { label: "NO", spins: -1, reachable: false };
+    return unreachable("NO");
   }
 
   const lockedItems = getLockedItems();
   if (lockedItems.has(toType)) {
-    return { label: "NO", spins: -1, reachable: false };
+    return unreachable("NO");
   }
 
   if (fromType === CollectibleType.DADS_NOTE) {
-    return { label: "NO", spins: -1, reachable: false };
+    return unreachable("NO");
   }
 
   const dadsNoteID = CollectibleType.DADS_NOTE as number;
@@ -66,7 +70,7 @@ export function computeSpins(
     const stepsToNote =
       fromID - dadsNoteID - countSkippedBetween(fromID, dadsNoteID);
     if (!carBattery || stepsToNote % 2 === 0) {
-      return { label: "DN", spins: -1, reachable: false };
+      return unreachable("DN");
     }
   }
 
@@ -74,12 +78,12 @@ export function computeSpins(
   // can drop to zero or negative, making the target unreachable. This is common when many items
   // near the target are locked and the two collectible IDs are close together.
   if (steps <= 0) {
-    return { label: "NO", spins: -1, reachable: false };
+    return unreachable("NO");
   }
 
   if (carBattery) {
     if (steps % 2 !== 0) {
-      return { label: "CB", spins: -1, reachable: false };
+      return unreachable("CB");
     }
     steps = Math.floor(steps / 2);
   }

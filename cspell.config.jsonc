@@ -29,5 +29,14 @@
     "mod/content/rooms/**",
     "mod/resources/rooms/**",
   ],
-  "words": ["ingame", "modpkg", "nospin", "softprops", "rtext"],
+  "words": [
+    "dedup",
+    "entrancy",
+    "ingame",
+    "modpkg",
+    "nospin",
+    "rescan",
+    "rtext",
+    "softprops",
+  ],
 }

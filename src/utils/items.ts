@@ -122,15 +122,19 @@ function buildTrie(registry: readonly ItemEntry[]): TrieNode {
   const root: TrieNode = { items: new Map(), children: new Map() };
 
   for (const entry of registry) {
-    insertIntoTrie(root, entry.searchKey, entry, 0);
+    const key = entry.searchKey;
+    insertIntoTrie(root, key, entry, 0);
 
     for (const wk of entry.wordKeys) {
-      insertIntoTrie(root, wk, entry, 1);
+      // A word key that is a prefix of the full search key (e.g. the first word) already has
+      // priority 0 along its whole path, so inserting it at priority 1 would be a no-op.
+      if (!key.startsWith(wk)) {
+        insertIntoTrie(root, wk, entry, 1);
+      }
     }
 
     // Insert every suffix (min 2 chars) as priority-2 substring matches. O(n × m²) where n = item
     // count (~700) and m = avg key length (~15). Runs once at startup; acceptable for this domain.
-    const key = entry.searchKey;
     for (let start = 1; start <= key.length - MIN_SUFFIX_LEN; start++) {
       insertIntoTrie(root, key.slice(start), entry, 2);
     }
@@ -187,15 +191,11 @@ export function searchItems(
     }
   }
 
+  // `node.items` is a Map, so each item appears at most once; no dedup needed.
   const results: ItemEntry[] = [];
-  const seen = new Set<ItemEntry>();
   const sorted = [...node.items.entries()].toSorted((a, b) => a[1] - b[1]);
 
   for (const [item] of sorted) {
-    if (seen.has(item)) {
-      continue;
-    }
-    seen.add(item);
     results.push(item);
     if (results.length >= maxResults) {
       break;

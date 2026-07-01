@@ -16,6 +16,7 @@ import {
   ModFeature,
   musicManager,
 } from "isaacscript-common";
+import type { SpindownMod } from "../main";
 import {
   isKeyboardOpen,
   overlayPinned,
@@ -33,13 +34,6 @@ import {
 } from "../utils/sprite";
 import { DeathCertificateFamiliar } from "./deathCertificateFamiliar";
 
-interface ModWithUnlockCheck extends ModUpgraded {
-  isCollectibleUnlocked: (
-    collectibleType: number,
-    itemPoolType: number,
-  ) => boolean;
-}
-
 const CAR_BATTERY_ID = CollectibleType.CAR_BATTERY;
 const SPINDOWN_DICE_ID = CollectibleType.SPINDOWN_DICE;
 const INDICATOR_SCALE = 1 / 3;
@@ -51,10 +45,18 @@ const FAMILIAR_Y_OFFSET = -10;
 const BOTTOM_HUD_Y = 26;
 const ITEM_SPRITE_SCALE = 0.5;
 
+// How often (in render frames) to re-scan the room for pedestals. This ensures that pedestals
+// spawned after room entry are picked up (e.g. shop restock, Diplopia, boss drops).
+const PEDESTAL_RESCAN_FRAMES = 30;
+
 function getCollectiblePedestals(): readonly EntityPickup[] {
-  const currentRoom = Game().GetLevel().GetCurrentRoomIndex();
-  if (roomPedestalCache.room === currentRoom) {
-    return roomPedestalCache.pedestals;
+  const frame = Isaac.GetFrameCount();
+  if (
+    roomPedestalCache.frame >= 0
+    && frame - roomPedestalCache.frame < PEDESTAL_RESCAN_FRAMES
+  ) {
+    // Filter out pedestals that despawned since the last scan.
+    return roomPedestalCache.pedestals.filter((pickup) => pickup.Exists());
   }
 
   const result: EntityPickup[] = [];
@@ -71,40 +73,58 @@ function getCollectiblePedestals(): readonly EntityPickup[] {
     }
   }
 
-  roomPedestalCache = { room: currentRoom, pedestals: result };
+  roomPedestalCache = { frame, pedestals: result };
   return result;
 }
 
 interface PedestalCache {
-  room: number;
+  /** The render frame of the last scan, or -1 if the cache is invalid. */
+  frame: number;
   pedestals: readonly EntityPickup[];
 }
 
-let roomPedestalCache: PedestalCache = { room: -1, pedestals: [] };
+let roomPedestalCache: PedestalCache = { frame: -1, pedestals: [] };
+
+function invalidatePedestalCache(): void {
+  roomPedestalCache = { frame: -1, pedestals: [] };
+}
 
 export class PedestalOverlayFeature extends ModFeature {
-  private readonly modRef: ModUpgraded;
+  private readonly modRef: SpindownMod;
   private lastPlayedRoom = -1;
-  private lastFoundSpinKey = "";
+  private readonly playedFoundJingleKeys = new Set<string>();
   private lineDelayFrames = 0;
-  private cachedDCRoom = -1;
   private cachedDCItemType: CollectibleType | undefined;
-  private cachedDCEntity: EntityPickup | null | undefined;
+  private cachedDCEntity: EntityPickup | null = null;
 
   private readonly dcFamiliar = new DeathCertificateFamiliar();
 
   constructor(mod: ModUpgraded) {
     super(mod, false);
-    this.modRef = mod;
+    // `initModFeatures` requires the constructor to accept a plain `ModUpgraded`, but `main.ts`
+    // always passes the mod upgraded with the features in `SpindownMod`.
+    this.modRef = mod as SpindownMod;
   }
 
   @CallbackCustom(ModCallbackCustom.POST_GAME_STARTED_REORDERED, undefined)
   postGameStarted(_isContinued: boolean): void {
-    const api = this.modRef as ModWithUnlockCheck;
     buildLockedItems((type, poolType) =>
-      api.isCollectibleUnlocked(type as number, poolType as number),
+      this.modRef.isCollectibleUnlocked(type, poolType),
     );
     invalidateRegistryCaches();
+    this.playedFoundJingleKeys.clear();
+    this.resetRoomCaches();
+  }
+
+  @CallbackCustom(ModCallbackCustom.POST_NEW_ROOM_REORDERED)
+  postNewRoom(): void {
+    this.resetRoomCaches();
+  }
+
+  private resetRoomCaches(): void {
+    invalidatePedestalCache();
+    this.cachedDCItemType = undefined;
+    this.cachedDCEntity = null;
   }
 
   // NOTE: This POST_RENDER callback mutates instance state (lineDelayFrames, lastPlayedRoom,
@@ -212,8 +232,8 @@ export class PedestalOverlayFeature extends ModFeature {
     }
 
     const carBattery = player.HasCollectible(CAR_BATTERY_ID);
-    const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
-    const foundKey = `${roomIndex}:${targetType}`;
+    const level = Game().GetLevel();
+    const foundKey = `${level.GetStage()}:${level.GetCurrentRoomIndex()}:${targetType}`;
     let foundMatch = false;
 
     for (const pickup of getCollectiblePedestals()) {
@@ -221,10 +241,10 @@ export class PedestalOverlayFeature extends ModFeature {
         foundMatch = true;
         const screenPos = Isaac.WorldToScreen(pickup.Position);
 
-        if (this.lastFoundSpinKey !== foundKey) {
+        if (!this.playedFoundJingleKeys.has(foundKey)) {
           musicManager.Play(Music.JINGLE_SECRET_ROOM_FIND, 0.4);
           musicManager.UpdateVolume();
-          this.lastFoundSpinKey = foundKey;
+          this.playedFoundJingleKeys.add(foundKey);
           this.lineDelayFrames = 15;
         }
 
@@ -277,9 +297,6 @@ export class PedestalOverlayFeature extends ModFeature {
       );
     }
 
-    if (!foundMatch) {
-      this.lastFoundSpinKey = "";
-    }
     return foundMatch;
   }
 
@@ -295,8 +312,12 @@ export class PedestalOverlayFeature extends ModFeature {
     }
 
     const roomIndex = Game().GetLevel().GetCurrentRoomIndex();
-    if (roomIndex !== this.cachedDCRoom || itemType !== this.cachedDCItemType) {
-      this.cachedDCRoom = roomIndex;
+    // The cached entity is reset on every new room, so it only needs to be re-scanned when the
+    // selected item changes or the entity despawns (e.g. the item was taken).
+    if (this.cachedDCEntity !== null && !this.cachedDCEntity.Exists()) {
+      this.cachedDCEntity = null;
+    }
+    if (itemType !== this.cachedDCItemType) {
       this.cachedDCItemType = itemType;
       this.cachedDCEntity = null;
 
@@ -308,7 +329,7 @@ export class PedestalOverlayFeature extends ModFeature {
       }
     }
 
-    const foundEntity = this.cachedDCEntity ?? null;
+    const foundEntity = this.cachedDCEntity;
 
     if (foundEntity === null) {
       this.lastPlayedRoom = -1;
